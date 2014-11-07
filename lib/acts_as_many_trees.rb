@@ -1,0 +1,2 @@
+module ActsAsManyTrees
+end
