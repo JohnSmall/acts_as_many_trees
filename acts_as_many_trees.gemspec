@@ -7,11 +7,11 @@ require "acts_as_many_trees/version"
 Gem::Specification.new do |s|
   s.name        = "acts_as_many_trees"
   s.version     = ActsAsManyTrees::VERSION
-  s.authors     = ["TODO: Your name"]
-  s.email       = ["TODO: Your email"]
-  s.homepage    = "TODO"
-  s.summary     = "TODO: Summary of ActsAsManyTrees."
-  s.description = "TODO: Description of ActsAsManyTrees."
+  s.authors     = ["John Small"]
+  s.email       = ["john@aardvark.vidhya.tv"]
+  s.homepage    = "http://aardvark.vidhya.tv"
+  s.summary     = "Summary of ActsAsManyTrees."
+  s.description = "Description of ActsAsManyTrees."
   s.license     = "MIT"
 
   s.files = Dir["{app,config,db,lib}/**/*", "MIT-LICENSE", "Rakefile", "README.rdoc"]
