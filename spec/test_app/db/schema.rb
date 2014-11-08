@@ -11,18 +11,22 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20141107060436) do
+ActiveRecord::Schema.define(version: 20141108152400) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
-  create_table "item_trees", force: true do |t|
-    t.integer  "ancestor_id"
-    t.integer  "descendant_id"
-    t.string   "tree_scope"
-    t.datetime "created_at"
-    t.datetime "updated_at"
+  create_table "item_hierarchies", id: false, force: true do |t|
+    t.integer "ancestor_id"
+    t.integer "descendant_id"
+    t.integer "generation"
+    t.string  "hierarchy_scope"
+    t.decimal "position"
   end
+
+  add_index "item_hierarchies", ["ancestor_id", "descendant_id", "hierarchy_scope"], name: "idx_unq_item_hierachy_ancestor_descendant_scope", unique: true, using: :btree
+  add_index "item_hierarchies", ["ancestor_id", "hierarchy_scope", "position"], name: "idx_ancestor_scope_position", using: :btree
+  add_index "item_hierarchies", ["descendant_id", "hierarchy_scope"], name: "index_item_hierarchies_on_descendant_id_and_hierarchy_scope", using: :btree
 
   create_table "items", force: true do |t|
     t.string   "name"
