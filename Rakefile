@@ -27,8 +27,17 @@ begin
     end
   end
 
- # task spec: :factory_specs
+  # task spec: :factory_specs
   task :default => :spec
+  #http://erniemiller.org/
+  desc 'run the console'
+  task :console do
+    require 'irb'
+    require 'irb/completion'
+    require 'lib/acts_as_many_trees' 
+    ARGV.clear
+    IRB.start
+  end
 rescue LoadError
   # no rspec available
 end
