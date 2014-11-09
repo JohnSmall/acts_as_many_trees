@@ -1,4 +1,4 @@
-
+require 'bigdecimal'
 module ActsAsManyTrees
   module HierarchyTable 
     extend ActiveSupport::Concern
@@ -37,7 +37,7 @@ module ActsAsManyTrees
 
       def self.set_parent_of(item,new_parent,hierarchy_scope='')
         self.delete_ancestors(item,hierarchy_scope) if item
-        self.fill_in_parent_for(new_parent,item,hierarchy_scope) if item || new_parent
+        self.fill_in_parent_for(new_parent,item,hierarchy_scope,after_node,before_node) if item || new_parent
         self.fill_in_ancestors_for(new_parent,item,hierarchy_scope) if item && new_parent
         self.delete_ancestors_of_item_children(item,hierarchy_scope) if item
         self.set_new_ancestors_of_item_children(item,hierarchy_scope) if item
@@ -74,28 +74,45 @@ module ActsAsManyTrees
         connection.execute(sql)
       end
 
-      def self.fill_in_parent_for(new_parent,item,hierarchy_scope,after_record=nil,before_record=nil)
+      def self.fill_in_parent_for(new_parent,item,hierarchy_scope='',after_node=nil,before_node=nil)
         if new_parent
           p_rec = find_by(descendant_id: new_parent.id,hierarchy_scope: hierarchy_scope)
           unless p_rec
             p_rec=create!(ancestor_id: new_parent.id,descendant_id: new_parent.id,hierarchy_scope: hierarchy_scope,generation:0,position:Random.rand(1000000))
           end
+#          p "p_rec.position = #{p_rec.position}"
           a_rec = nil
-          if after_record
-            a_rec = after_record
-          elsif new_parent.children.last
-            a_rec = new_parent.children.last
-          end
-          if a_rec  
+          if after_node
+            a_rec = after_node
             a_rec_h = find_by(ancestor_id: new_parent.id, descendant_id:a_rec.id,hierarchy_scope: hierarchy_scope)
             a_rec_pos = a_rec_h.position
+          elsif new_parent.children.last
+            a_rec = new_parent.children.last
+            a_rec_h = find_by(ancestor_id: new_parent.id, descendant_id:a_rec.id,hierarchy_scope: hierarchy_scope)
+            a_rec_pos = a_rec_h.position
+          else
+            a_rec_pos = p_rec.position
           end
-          last_position = a_rec_pos || p_rec.position
-          new_position = last_position + Random.rand(1000000)
+
+          if before_node 
+            b_rec = find_by(descendant_id: before_node.id,hierarchy_scope: hierarchy_scope,generation: 1)
+            if b_rec
+              b_position = b_rec.position
+            end
+          end
+          if b_position && !after_node
+#            p "b_position #{b_position} parent position #{p_rec.position}"
+            new_position = (Random.rand(10)*(b_position - p_rec.position)/11)+p_rec.position
+          elsif b_position && after_node
+#            p "b_position #{b_position}  after position #{a_rec_pos}"
+            new_position = (Random.rand(10)*(b_position - a_rec_pos)/11)+a_rec_pos
+          else
+            new_position = a_rec_pos + Random.rand(1000000)
+          end
           #create(ancestor_id: item.id,descendant_id: item.id,hierarchy_scope: hierarchy_scope,position:new_position,generation:0)
           if item
-            create(ancestor_id: new_parent.id,descendant_id: item.id,generation: 1,hierarchy_scope: hierarchy_scope,position:new_position)
-          end
+#          p "id = #{item.id} position=#{new_position}"
+          create(ancestor_id: new_parent.id,descendant_id: item.id,generation: 1,hierarchy_scope: hierarchy_scope,position:new_position)
         end
       end
 

@@ -49,8 +49,17 @@ module ActsAsManyTrees
       }
     end
     delegate :hierarchy_class, to: :class
-    def parent=(new_parent,hierarchy_scope='')
-      hierarchy_class.set_parent_of(self,new_parent,hierarchy_scope)
+    def parent=(inpt_parent)
+      if inpt_parent.is_a?(Hash)
+         new_parent=inpt_parent[:new_parent]
+         after_node=inpt_parent[:after_node]
+         before_node=inpt_parent[:before_node]
+         hierarchy_scope=inpt_parent[:hierarchy_scope] || ''
+      else
+        new_parent=inpt_parent
+        hierarchy_scope = ''
+      end  
+      hierarchy_class.set_parent_of(self,new_parent,hierarchy_scope,after_node,before_node)
     end
 
     def set_parent(new_parent,hierarchy_scope='')
