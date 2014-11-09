@@ -35,40 +35,40 @@ module ActsAsManyTrees
         foreign_key: 'descendant_id',
         dependent: :delete_all,
         inverse_of: :unscoped_descendant
-  has_many :unscoped_ancestors,through: :unscoped_ancestor_links
-  has_many :unscoped_descendants, through: :unscoped_descendant_links
-  scope :roots , ->(hierarchy=''){
-    on = Arel::Nodes::On.new(Arel::Nodes::Equality.new(arel_table[:id],hierarchy_class.arel_table[:descendant_id])
-                             .and(hierarchy_class.arel_table[:hierarchy_scope].eq(hierarchy))
-                            )
-    outer_join = Arel::Nodes::OuterJoin.new(hierarchy_class.arel_table,on)
-    joins(outer_join).merge(hierarchy_class.where(ancestor_id: nil))
-  }
+      has_many :unscoped_ancestors,through: :unscoped_ancestor_links
+      has_many :unscoped_descendants, through: :unscoped_descendant_links
+      scope :roots , ->(hierarchy=''){
+        on = Arel::Nodes::On.new(Arel::Nodes::Equality.new(arel_table[:id],hierarchy_class.arel_table[:descendant_id])
+                                 .and(hierarchy_class.arel_table[:hierarchy_scope].eq(hierarchy))
+                                )
+        outer_join = Arel::Nodes::OuterJoin.new(hierarchy_class.arel_table,on)
+        joins(outer_join).merge(hierarchy_class.where(ancestor_id: nil))
+      }
     end
     delegate :hierarchy_class, to: :class
-  def parent=(new_parent,hierarchy_scope='')
-    hierarchy_class.set_parent_of(self,new_parent,hierarchy_scope)
-  end
+    def parent=(new_parent,hierarchy_scope='')
+      hierarchy_class.set_parent_of(self,new_parent,hierarchy_scope)
+    end
 
-  def set_parent(new_parent,hierarchy_scope='')
-    hierarchy_class.set_parent_of(self,new_parent,hierarchy_scope)
-  end
+    def set_parent(new_parent,hierarchy_scope='')
+      hierarchy_class.set_parent_of(self,new_parent,hierarchy_scope)
+    end
 
-  def parent(hierarchy_scope='')
-    ancestors(hierarchy_scope).where('generation=1').first
-  end
+    def parent(hierarchy_scope='')
+      ancestors(hierarchy_scope).where('generation=1').first
+    end
 
-  def children(hierarchy_scope='')
-    descendants(hierarchy_scope).where('generation=1')
-  end
+    def children(hierarchy_scope='')
+      descendants(hierarchy_scope).where('generation=1')
+    end
 
-  def ancestors(hierarchy='')
-    unscoped_ancestors.merge(hierarchy_class.scope_hierarchy(hierarchy))
-  end
+    def ancestors(hierarchy='')
+      unscoped_ancestors.merge(hierarchy_class.scope_hierarchy(hierarchy))
+    end
 
-  def descendants(hierarchy='')
-    unscoped_descendants.merge(hierarchy_class.scope_hierarchy(hierarchy))
-  end
+    def descendants(hierarchy='')
+      unscoped_descendants.merge(hierarchy_class.scope_hierarchy(hierarchy))
+    end
   end
 
 end

@@ -1,0 +1,21 @@
+class <%= migration_class_name %> < ActiveRecord::Migration
+  def change
+    create_table :<%= hierarchy_table_name %>, id: false do |t|
+      t.integer :ancestor_id, null: false
+      t.integer :descendant_id, null: false
+      t.integer :generation, null: false
+      t.string  :hierarchy_scope,null: false
+      t.decimal :position
+    end
+
+    add_index :<%= hierarchy_table_name %>, [:ancestor_id, :descendant_id,:hierarchy_scope],
+      unique: true,
+      name: <%= "#{hierarchy_table_name}_anc_desc_scope_idx" %>
+
+    add_index :<%= hierarchy_table_name -%>, [:descendant_id,:hierarchy_scope],
+      name: <%= "#{hierarchy_table_name}_desc_scope_idx" %>
+
+    add_index :<%= hierarchy_table_name -%>, [:ancestor_id,:hierarchy_scope,:position],
+      name: <%= "#{hierarchy_table_name}_anc_scope_pos_idx" %>
+  end
+end
