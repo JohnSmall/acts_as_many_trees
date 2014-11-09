@@ -10,12 +10,12 @@ class <%= migration_class_name %> < ActiveRecord::Migration
 
     add_index :<%= hierarchy_table_name %>, [:ancestor_id, :descendant_id,:hierarchy_scope],
       unique: true,
-      name: <%= "#{hierarchy_table_name}_anc_desc_scope_idx" %>
+      name:'<%="#{hierarchy_table_name}_anc_desc_scope_idx" %>'
 
     add_index :<%= hierarchy_table_name -%>, [:descendant_id,:hierarchy_scope],
-      name: <%= "#{hierarchy_table_name}_desc_scope_idx" %>
+      name: '<%="#{hierarchy_table_name}_desc_scope_idx" %>'
 
     add_index :<%= hierarchy_table_name -%>, [:ancestor_id,:hierarchy_scope,:position],
-      name: <%= "#{hierarchy_table_name}_anc_scope_pos_idx" %>
+      name: '<%="#{hierarchy_table_name}_anc_scope_pos_idx" %>'
   end
 end
