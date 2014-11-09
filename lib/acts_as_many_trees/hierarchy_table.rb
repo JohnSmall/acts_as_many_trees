@@ -24,7 +24,15 @@ module ActsAsManyTrees
       scope :roots,->do
         t1 = arel_table
         t2 = arel_table.alias
-        t1.project(Arel::star).join(t2,Arel::Nodes::OuterJoin).on(t1[:ancestor_id].eq(t2[:descendant_id]).and(t1[:hierarchy_scope].eq(t2[:hierarchy_scope]))).where(t2[:ancestor_id].eq(nil))
+        t1.project(Arel::star).join(t2,Arel::Nodes::OuterJoin)
+          .on(t1[:ancestor_id]
+          .eq(t2[:descendant_id])
+          .and(t1[:hierarchy_scope].eq(t2[:hierarchy_scope])
+              )
+             )
+          .where(t2[:ancestor_id].eq(nil)
+                )
+             
       end
 
       def self.set_parent_of(item,new_parent,hierarchy_scope='')

@@ -37,28 +37,37 @@ module ActsAsManyTrees
         inverse_of: :unscoped_descendant
   has_many :unscoped_ancestors,through: :unscoped_ancestor_links
   has_many :unscoped_descendants, through: :unscoped_descendant_links
-  scope :roots , ->{
-    includes(:unscoped_ancestor_links).where(item_hierarchies: {ancestor_id: nil})
+  scope :roots , ->(hierarchy=''){
+    on = Arel::Nodes::On.new(Arel::Nodes::Equality.new(arel_table[:id],hierarchy_class.arel_table[:descendant_id])
+                             .and(hierarchy_class.arel_table[:hierarchy_scope].eq(hierarchy))
+                            )
+    outer_join = Arel::Nodes::OuterJoin.new(hierarchy_class.arel_table,on)
+    joins(outer_join).merge(hierarchy_class.where(ancestor_id: nil))
   }
     end
-  def parent=(new_parent)
-    self.class.hierarchy_class.set_parent_of(self,new_parent)
+    delegate :hierarchy_class, to: :class
+  def parent=(new_parent,hierarchy_scope='')
+    hierarchy_class.set_parent_of(self,new_parent,hierarchy_scope)
   end
 
-  def parent
-    ancestors.where('generation=1').first
+  def set_parent(new_parent,hierarchy_scope='')
+    hierarchy_class.set_parent_of(self,new_parent,hierarchy_scope)
   end
 
-  def children
-    descendants.where('generation=1')
+  def parent(hierarchy_scope='')
+    ancestors(hierarchy_scope).where('generation=1').first
+  end
+
+  def children(hierarchy_scope='')
+    descendants(hierarchy_scope).where('generation=1')
   end
 
   def ancestors(hierarchy='')
-    unscoped_ancestors.merge(self.class.hierarchy_class.scope_hierarchy(hierarchy))
+    unscoped_ancestors.merge(hierarchy_class.scope_hierarchy(hierarchy))
   end
 
-  def descendants(hierarchy)
-    unscoped_descendants.merge(self.class.hierarchy_class.scope_hierarchy(hierarchy))
+  def descendants(hierarchy='')
+    unscoped_descendants.merge(hierarchy_class.scope_hierarchy(hierarchy))
   end
   end
 
