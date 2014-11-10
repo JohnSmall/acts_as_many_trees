@@ -78,6 +78,15 @@ module ActsAsManyTrees
       descendants(hierarchy_scope).where('generation=1')
     end
 
+    def siblings(hierarchy_scope='')
+        parent(hierarchy_scope).children(hierarchy_scope).where.not(id: id)
+    end
+
+    def self_and_siblings(hierarchy_scope='')
+        parent(hierarchy_scope).children(hierarchy_scope)
+    end
+
+
     def ancestors(hierarchy='')
       unscoped_ancestors.merge(hierarchy_class.scope_hierarchy(hierarchy))
     end
