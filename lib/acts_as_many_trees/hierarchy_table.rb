@@ -115,11 +115,11 @@ module ActsAsManyTrees
             create(ancestor_id: new_parent.id,descendant_id: item.id,generation: 1,hierarchy_scope: hierarchy_scope,position:new_position)
           end
         end
-        end
+      end
 
-        def self.fill_in_ancestors_for(new_parent,item,hierarchy_scope)
-          if new_parent
-            sql=<<-SQL
+      def self.fill_in_ancestors_for(new_parent,item,hierarchy_scope)
+        if new_parent
+          sql=<<-SQL
        insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
        select it.ancestor_id,new_itm.descendant_id,it.generation+1,it.hierarchy_scope,new_itm.position
        from #{table_name} it 
@@ -128,10 +128,10 @@ module ActsAsManyTrees
        and new_itm.descendant_id=#{item.id}
        and (it.ancestor_id <> it.descendant_id)
        and it.hierarchy_scope = '#{hierarchy_scope}'
-            SQL
-            ActiveRecord::Base.connection.execute(sql)
-          end
+          SQL
+          ActiveRecord::Base.connection.execute(sql)
         end
+      end
 
     end
   end
