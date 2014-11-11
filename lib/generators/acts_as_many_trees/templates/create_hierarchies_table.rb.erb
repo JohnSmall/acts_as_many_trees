@@ -1,4 +1,5 @@
 class <%= migration_class_name %> < ActiveRecord::Migration
+  #[TO DO], if schema_plus is installed then we have to change the table the foreign keys look for
   def change
     create_table :<%= hierarchy_table_name %>, id: false do |t|
       t.integer :ancestor_id, null: false
