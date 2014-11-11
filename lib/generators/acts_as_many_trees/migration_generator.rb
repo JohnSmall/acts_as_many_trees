@@ -8,7 +8,7 @@ module ActsAsManyTrees
       include ActiveRecord::Generators::Migration
 
       extend Forwardable
-      def_delegators :hierarchy_table_name
+      def_delegators :hierarchy_table_name,:model_name
 
       def self.default_generator_root
         File.dirname(__FILE__)
@@ -24,6 +24,14 @@ module ActsAsManyTrees
 
       def hierarchy_table_name
          (class_name+'Hierarchy').tableize
+      end
+
+      def model_name
+        (class_name+'Hierarchy')
+      end
+
+      def create_model_file
+          template 'create_model.rb.erb', File.join('app/models', class_path, "#{model_name.underscore}.rb")
       end
     end
   end
