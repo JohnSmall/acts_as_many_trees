@@ -115,6 +115,7 @@ module ActsAsManyTrees
             create(ancestor_id: new_parent.id,descendant_id: item.id,generation: 1,hierarchy_scope: hierarchy_scope,position:new_position)
           end
         end
+        end
 
         def self.fill_in_ancestors_for(new_parent,item,hierarchy_scope)
           if new_parent
@@ -131,7 +132,6 @@ module ActsAsManyTrees
             ActiveRecord::Base.connection.execute(sql)
           end
         end
-      end
 
     end
   end
