@@ -64,6 +64,16 @@ describe Item do
       expect(@items[0].ancestors.pluck(:id)).to include(@items[2].id)
     end
 
+    it 'should let the parent add a child' do
+      @items[0].add_child(@items[1])
+      expect(@items[0].children.pluck(:id)).to eq [@items[1].id]
+    end
+
+    it 'should make the parent a root even if the child is nil' do
+      @items[0].add_child(nil)
+      expect(Item.roots.pluck(:id)).to eq([@items[0].id])
+    end
+
     it 'should list the roots' do
       @items[0].parent = @items[1]
       @items[2].parent = @items[3]

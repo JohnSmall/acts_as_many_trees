@@ -36,10 +36,10 @@ module ActsAsManyTrees
       end
 
       def self.set_parent_of(item,new_parent,hierarchy_scope='')
-        self.delete_ancestors(item,hierarchy_scope)
-        self.fill_in_ancestors_for(new_parent,item,hierarchy_scope)
-        self.delete_ancestors_of_item_children(item,hierarchy_scope)
-        self.set_new_ancestors_of_item_children(item,hierarchy_scope)
+        self.delete_ancestors(item,hierarchy_scope) if item
+        self.fill_in_ancestors_for(new_parent,item,hierarchy_scope) if item || new_parent
+        self.delete_ancestors_of_item_children(item,hierarchy_scope) if item
+        self.set_new_ancestors_of_item_children(item,hierarchy_scope) if item
       end
 
       private
@@ -76,6 +76,7 @@ module ActsAsManyTrees
       def self.fill_in_ancestors_for(new_parent,item,hierarchy_scope)
         if new_parent
           create(ancestor_id: new_parent.id,descendant_id: item.id,generation: 1,hierarchy_scope: hierarchy_scope)
+        if item
           sql=<<-SQL
        insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope)
        select it.ancestor_id,#{item.id},it.generation+1,it.hierarchy_scope
@@ -84,6 +85,7 @@ module ActsAsManyTrees
        and it.hierarchy_scope = '#{hierarchy_scope}'
           SQL
           ActiveRecord::Base.connection.execute(sql)
+        end
         end
       end
     end

@@ -54,6 +54,10 @@ module ActsAsManyTrees
       hierarchy_class.set_parent_of(self,new_parent,hierarchy_scope)
     end
 
+    def add_child(new_child,hierarchy_scope='')
+      hierarchy_class.set_parent_of(new_child,self,hierarchy_scope)
+    end
+
     def parent(hierarchy_scope='')
       ancestors(hierarchy_scope).where('generation=1').first
     end
