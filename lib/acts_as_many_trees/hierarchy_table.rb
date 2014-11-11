@@ -35,7 +35,7 @@ module ActsAsManyTrees
 
       end
 
-      def self.set_parent_of(item,new_parent,hierarchy_scope='')
+      def self.set_parent_of(item,new_parent,hierarchy_scope='',after_node=nil,before_node=nil)
         self.delete_ancestors(item,hierarchy_scope) if item
         self.fill_in_parent_for(new_parent,item,hierarchy_scope,after_node,before_node) if item || new_parent
         self.fill_in_ancestors_for(new_parent,item,hierarchy_scope) if item && new_parent
@@ -80,7 +80,7 @@ module ActsAsManyTrees
           unless p_rec
             p_rec=create!(ancestor_id: new_parent.id,descendant_id: new_parent.id,hierarchy_scope: hierarchy_scope,generation:0,position:Random.rand(1000000))
           end
-#          p "p_rec.position = #{p_rec.position}"
+          #          p "p_rec.position = #{p_rec.position}"
           a_rec = nil
           if after_node
             a_rec = after_node
@@ -101,24 +101,24 @@ module ActsAsManyTrees
             end
           end
           if b_position && !after_node
-#            p "b_position #{b_position} parent position #{p_rec.position}"
+            #            p "b_position #{b_position} parent position #{p_rec.position}"
             new_position = (Random.rand(10)*(b_position - p_rec.position)/11)+p_rec.position
           elsif b_position && after_node
-#            p "b_position #{b_position}  after position #{a_rec_pos}"
+            #            p "b_position #{b_position}  after position #{a_rec_pos}"
             new_position = (Random.rand(10)*(b_position - a_rec_pos)/11)+a_rec_pos
           else
             new_position = a_rec_pos + Random.rand(1000000)
           end
           #create(ancestor_id: item.id,descendant_id: item.id,hierarchy_scope: hierarchy_scope,position:new_position,generation:0)
           if item
-#          p "id = #{item.id} position=#{new_position}"
-          create(ancestor_id: new_parent.id,descendant_id: item.id,generation: 1,hierarchy_scope: hierarchy_scope,position:new_position)
+            #          p "id = #{item.id} position=#{new_position}"
+            create(ancestor_id: new_parent.id,descendant_id: item.id,generation: 1,hierarchy_scope: hierarchy_scope,position:new_position)
+          end
         end
-      end
 
-      def self.fill_in_ancestors_for(new_parent,item,hierarchy_scope)
-        if new_parent
-          sql=<<-SQL
+        def self.fill_in_ancestors_for(new_parent,item,hierarchy_scope)
+          if new_parent
+            sql=<<-SQL
        insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
        select it.ancestor_id,new_itm.descendant_id,it.generation+1,it.hierarchy_scope,new_itm.position
        from #{table_name} it 
@@ -127,11 +127,12 @@ module ActsAsManyTrees
        and new_itm.descendant_id=#{item.id}
        and (it.ancestor_id <> it.descendant_id)
        and it.hierarchy_scope = '#{hierarchy_scope}'
-          SQL
-          ActiveRecord::Base.connection.execute(sql)
+            SQL
+            ActiveRecord::Base.connection.execute(sql)
+          end
         end
       end
-    end
 
+    end
   end
 end

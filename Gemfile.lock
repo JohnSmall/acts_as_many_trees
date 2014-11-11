@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    acts_as_many_trees (0.0.2)
+    acts_as_many_trees (0.0.3)
       rails (~> 4.1)
 
 GEM
