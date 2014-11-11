@@ -25,16 +25,19 @@ module ActsAsManyTrees
     extend ActiveSupport::Concern
     included do
       has_many :unscoped_descendant_links,
+        ->{order(:position)},
         class_name:hierarchy_class.to_s,
         foreign_key: 'ancestor_id',
         dependent: :delete_all,
         inverse_of: :unscoped_ancestor
 
       has_many :unscoped_ancestor_links,
+        ->{order(:position)},
         class_name: hierarchy_class.to_s,
         foreign_key: 'descendant_id',
         dependent: :delete_all,
         inverse_of: :unscoped_descendant
+
       has_many :unscoped_ancestors,through: :unscoped_ancestor_links
       has_many :unscoped_descendants, through: :unscoped_descendant_links
       scope :roots , ->(hierarchy=''){
@@ -42,7 +45,7 @@ module ActsAsManyTrees
                                  .and(hierarchy_class.arel_table[:hierarchy_scope].eq(hierarchy))
                                 )
         outer_join = Arel::Nodes::OuterJoin.new(hierarchy_class.arel_table,on)
-        joins(outer_join).merge(hierarchy_class.where(ancestor_id: nil))
+        joins(outer_join).merge(hierarchy_class.where(generation: 0))
       }
     end
     delegate :hierarchy_class, to: :class

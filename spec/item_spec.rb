@@ -1,5 +1,5 @@
 require 'rails_helper'
-
+require 'support/utils'
 describe Item do
   describe 'the methods required' do
     let(:item){build(:item)}
@@ -76,9 +76,17 @@ describe Item do
 
     it 'should list the roots' do
       @items[0].parent = @items[1]
-      @items[2].parent = @items[3]
       @items[1].parent = @items[2]
+      @items[2].parent = @items[3]
       @items[4].parent = @items[5]
+      expect(Item.roots.pluck(:id).sort).to eq([@items[3].id,@items[5].id])
+    end
+
+    it 'should list the roots when added in a different order' do
+      @items[0].parent = @items[1]
+      @items[2].parent = @items[3]
+      @items[4].parent = @items[5]
+      @items[1].parent = @items[2]
       expect(Item.roots.pluck(:id).sort).to eq([@items[3].id,@items[5].id])
     end
 
