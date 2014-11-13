@@ -32,7 +32,18 @@ module ActsAsManyTrees
            )
         .where(t2[:ancestor_id].eq(nil)
               )
-
+      end
+      scope :self_and_siblings, ->(item,hierarchy_scope='')do
+        t1 = arel_table
+        t2 = arel_table.alias
+        where(
+        t1.join(t2).on(t1[:hierarchy_scope].eq(t2[:hierarchy_scope])
+                       .and(t1[:hierarchy_scope].eq(hierarchy_scope))
+                       .and(t1[:ancestor_id].eq(t2[:ancestor_id]))
+                       .and(t2[:generation].eq(1))
+                       .and(t1[:descendant_id].eq([item.id]))
+                       )
+        )
       end
 
       def self.set_parent_of(item,new_parent,hierarchy_scope='',after_node=nil,before_node=nil)

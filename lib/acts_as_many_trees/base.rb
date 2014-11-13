@@ -83,7 +83,8 @@ module ActsAsManyTrees
     end
 
     def self_and_siblings(hierarchy_scope='')
-        parent(hierarchy_scope).children(hierarchy_scope)
+#        parent(hierarchy_scope).children(hierarchy_scope)
+      self.class.joins(hierarchy_class).merge(hierarchy_class.self_and_siblings(self,hierarchy_scope))
     end
 
 
