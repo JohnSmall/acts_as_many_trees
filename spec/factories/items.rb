@@ -4,3 +4,12 @@ FactoryGirl.define do
   end
 
 end
+
+FactoryGirl.define do
+  factory :sub_item do
+    sequence(:name) {|n| "name#{n}" }
+  end
+
+end
+    
+
