@@ -1,0 +1,3 @@
+class SubItem < Item
+end
+
