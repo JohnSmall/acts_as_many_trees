@@ -19,6 +19,31 @@ module ActsAsManyTrees
         foreign_key: 'descendant_id', 
         inverse_of: :unscoped_ancestor_links
 
+      has_many :ancestors,
+       class_name: self.name,
+       foreign_key: 'descendant_id',
+       primary_key: 'ancestor_id'
+
+      has_many :descendants,
+       ->(rec){where(hierarchy_scope: rec.hierarchy_scope).order(:position)}, 
+       class_name: self.name,
+       foreign_key: 'ancestor_id',
+       primary_key: 'descendant_id'
+
+      has_many :siblings,
+       ->{where(generation: 1)}, 
+       class_name: self.name,
+       foreign_key: 'ancestor_id',
+       primary_key: 'ancestor_id'
+
+      has_many :children,
+       ->(rec){where(hierarchy_scope: rec.hierarchy_scope,generation: 1).order(:position)}, 
+       class_name: self.name,
+       foreign_key: 'ancestor_id',
+       primary_key: 'descendant_id'
+
+      has_many :item_siblings,{through: :siblings, source: :unscoped_descendant}
+
       scope :scope_hierarchy,->(scope_hierarchy=''){ where hierarchy_scope: scope_hierarchy}
       # select t1.* from item_trees t1 left outer join item_trees t2 on t1.ancestor_id = t2.descendant_id and t1.tree_scope = t2.tree_scope where t2.ancestor_id is null
       scope :roots,->do
@@ -34,16 +59,10 @@ module ActsAsManyTrees
               )
       end
       scope :self_and_siblings, ->(item,hierarchy_scope='')do
-        t1 = arel_table
-        t2 = arel_table.alias
-        where(
-        t1.join(t2).on(t1[:hierarchy_scope].eq(t2[:hierarchy_scope])
-                       .and(t1[:hierarchy_scope].eq(hierarchy_scope))
-                       .and(t1[:ancestor_id].eq(t2[:ancestor_id]))
-                       .and(t2[:generation].eq(1))
-                       .and(t1[:descendant_id].eq([item.id]))
-                       )
-        )
+        joins(:siblings)
+      end
+      scope :siblings_before_this,->(rec) do
+        joins(:siblings).where(:position,lt(rec.position))
       end
 
       def self.set_parent_of(item,new_parent,hierarchy_scope='',after_node=nil,before_node=nil)

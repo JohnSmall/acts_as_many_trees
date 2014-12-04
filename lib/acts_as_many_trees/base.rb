@@ -39,7 +39,19 @@ module ActsAsManyTrees
         inverse_of: :unscoped_descendant
 
       has_many :unscoped_ancestors,through: :unscoped_ancestor_links
-      has_many :unscoped_descendants, through: :unscoped_descendant_links
+      has_many :unscoped_descendants,  {:through=>:unscoped_descendant_links, :source=>:unscoped_descendant}
+      has_many :item_siblings,  
+        {:through=>:unscoped_ancestor_links, 
+         :source=>:item_siblings}
+      has_many :siblings_before,
+        ->{where('unscoped_ancestor_links_siblings_before_join.position > item_hierarchies.position').where('unscoped_ancestor_links_siblings_before_join.generation=1')},
+        {:through=>:unscoped_ancestor_links, 
+         :source=>:item_siblings}
+      has_many :siblings_after,
+        ->{where('unscoped_ancestor_links_siblings_after_join.position < item_hierarchies.position').where('unscoped_ancestor_links_siblings_after_join.generation=1')},
+        {:through=>:unscoped_ancestor_links, 
+         :source=>:item_siblings}
+
       scope :roots , ->(hierarchy=''){
         on = Arel::Nodes::On.new(Arel::Nodes::Equality.new(arel_table[:id],hierarchy_class.arel_table[:descendant_id])
                                  .and(hierarchy_class.arel_table[:hierarchy_scope].eq(hierarchy))
@@ -47,6 +59,9 @@ module ActsAsManyTrees
         outer_join = Arel::Nodes::OuterJoin.new(hierarchy_class.arel_table,on)
         joins(outer_join).merge(hierarchy_class.where(generation: 0))
       }
+      scope :scope1,->(rec) do
+        joins(:unscoped_ancestor_links).joins(:unscoped_descendant_links).on('unscoped_descendant_links.ancestor_id = item_hierarchies.ancestor_id')
+      end
     end
     delegate :hierarchy_class, to: :class
     def parent=(inpt_parent)
@@ -78,14 +93,14 @@ module ActsAsManyTrees
       descendants(hierarchy_scope).where('generation=1')
     end
 
-    def siblings(hierarchy_scope='')
-        parent(hierarchy_scope).children(hierarchy_scope).where.not(id: id)
-    end
-
-    def self_and_siblings(hierarchy_scope='')
-#        parent(hierarchy_scope).children(hierarchy_scope)
-      self.class.joins(hierarchy_class).merge(hierarchy_class.self_and_siblings(self,hierarchy_scope))
-    end
+#    def siblings(hierarchy_scope='')
+#        parent(hierarchy_scope).children(hierarchy_scope).where.not(id: id)
+#    end
+#
+#    def self_and_siblings(hierarchy_scope='')
+##        parent(hierarchy_scope).children(hierarchy_scope)
+#      self.class.joins(hierarchy_class).merge(hierarchy_class.self_and_siblings(self,hierarchy_scope))
+#    end
 
 
     def ancestors(hierarchy='')
