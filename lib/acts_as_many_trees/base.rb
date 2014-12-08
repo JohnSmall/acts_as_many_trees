@@ -40,7 +40,7 @@ module ActsAsManyTrees
 
       has_many :unscoped_ancestors,through: :unscoped_ancestor_links
       has_many :unscoped_descendants,  {:through=>:unscoped_descendant_links, :source=>:unscoped_descendant}
-      has_many :item_siblings,  
+      has_many :self_and_siblings,  
         {:through=>:unscoped_ancestor_links, 
          :source=>:item_siblings}
       has_many :siblings_before,
@@ -59,19 +59,18 @@ module ActsAsManyTrees
         outer_join = Arel::Nodes::OuterJoin.new(hierarchy_class.arel_table,on)
         joins(outer_join).merge(hierarchy_class.where(generation: 0))
       }
-      scope :scope1,->(rec) do
-        joins(:unscoped_ancestor_links).joins(:unscoped_descendant_links).on('unscoped_descendant_links.ancestor_id = item_hierarchies.ancestor_id')
-      end
     end
     delegate :hierarchy_class, to: :class
     def parent=(inpt_parent)
       if inpt_parent.is_a?(Hash)
          new_parent=inpt_parent[:new_parent]
-         after_node=inpt_parent[:after_node]
-         before_node=inpt_parent[:before_node]
+         after_node=inpt_parent[:after_node] 
+         before_node=inpt_parent[:before_node] 
          hierarchy_scope=inpt_parent[:hierarchy_scope] || ''
       else
         new_parent=inpt_parent
+        after_node=inpt_parent.children.last unless inpt_parent.nil?
+        before_node=inpt_parent.next_sibling unless inpt_parent.nil?
         hierarchy_scope = ''
       end  
       hierarchy_class.set_parent_of(self,new_parent,hierarchy_scope,after_node,before_node)
@@ -93,16 +92,6 @@ module ActsAsManyTrees
       descendants(hierarchy_scope).where('generation=1')
     end
 
-#    def siblings(hierarchy_scope='')
-#        parent(hierarchy_scope).children(hierarchy_scope).where.not(id: id)
-#    end
-#
-#    def self_and_siblings(hierarchy_scope='')
-##        parent(hierarchy_scope).children(hierarchy_scope)
-#      self.class.joins(hierarchy_class).merge(hierarchy_class.self_and_siblings(self,hierarchy_scope))
-#    end
-
-
     def ancestors(hierarchy='')
       unscoped_ancestors.merge(hierarchy_class.scope_hierarchy(hierarchy))
     end
@@ -110,6 +99,19 @@ module ActsAsManyTrees
     def descendants(hierarchy='')
       unscoped_descendants.merge(hierarchy_class.scope_hierarchy(hierarchy))
     end
+    
+    def siblings
+      self_and_siblings.where.not(id: id)
+    end
+
+    def previous_sibling
+      siblings_before.last
+    end
+
+    def next_sibling
+      siblings_after.first
+    end
+
   end
 
 end
