@@ -162,7 +162,11 @@ module ActsAsManyTrees
           ActiveRecord::Base.connection.execute(sql)
         end
       end
-
+def self.reset_descendant_position(parent,hierarchy_scope='')
+#select ancestor_id,descendant_id,generation,position, 
+  #(CAST ((rank() over (partition by ancestor_id order by position)) AS numeric))
+  #/( CAST (count(*) over (partition by ancestor_id)+1 AS numeric)) from item_hierarchies where ancestor_id=1;
+end
     end
   end
 end
