@@ -59,6 +59,8 @@ module ActsAsManyTrees
         outer_join = Arel::Nodes::OuterJoin.new(hierarchy_class.arel_table,on)
         joins(outer_join).merge(hierarchy_class.where(generation: 0))
       }
+      scope :not_this,->(this_id) { where.not(id: this_id)}
+      }
     end
     delegate :hierarchy_class, to: :class
     def parent=(inpt_parent)
@@ -92,11 +94,15 @@ module ActsAsManyTrees
       descendants(hierarchy_scope).where('generation=1')
     end
 
-    def ancestors(hierarchy='')
+    def self_and_ancestors(hierarchy='')
       unscoped_ancestors.merge(hierarchy_class.scope_hierarchy(hierarchy))
     end
 
-    def descendants(hierarchy='')
+    def ancestors(hierarchy='')
+      self_and_ancestors(hierarchy).not_this(self.id)
+    end
+
+    def self_and_descendants(hierarchy='')
       unscoped_descendants.merge(hierarchy_class.scope_hierarchy(hierarchy))
     end
     
@@ -110,6 +116,9 @@ module ActsAsManyTrees
 
     def next_sibling
       siblings_after.first
+
+    def descendants(hierarchy='')
+      self_and_descendants(hierarchy).not_this(self.id)
     end
 
   end
