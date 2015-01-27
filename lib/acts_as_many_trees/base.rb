@@ -43,32 +43,32 @@ module ActsAsManyTrees
       has_many :self_and_siblings,  
         {:through=>:unscoped_ancestor_links, 
          :source=>:item_siblings}
-      has_many :siblings_before,
-        ->{where('unscoped_ancestor_links_siblings_before_join.position > item_hierarchies.position').where('unscoped_ancestor_links_siblings_before_join.generation=1')},
-        {:through=>:unscoped_ancestor_links, 
-         :source=>:item_siblings}
-      has_many :siblings_after,
-        ->{where('unscoped_ancestor_links_siblings_after_join.position < item_hierarchies.position').where('unscoped_ancestor_links_siblings_after_join.generation=1')},
-        {:through=>:unscoped_ancestor_links, 
-         :source=>:item_siblings}
+        has_many :siblings_before,
+          ->{where('unscoped_ancestor_links_siblings_before_join.position > item_hierarchies.position').where('unscoped_ancestor_links_siblings_before_join.generation=1')},
+          {:through=>:unscoped_ancestor_links, 
+           :source=>:item_siblings}
+          has_many :siblings_after,
+            ->{where('unscoped_ancestor_links_siblings_after_join.position < item_hierarchies.position').where('unscoped_ancestor_links_siblings_after_join.generation=1')},
+            {:through=>:unscoped_ancestor_links, 
+             :source=>:item_siblings}
 
-      scope :roots , ->(hierarchy=''){
-        on = Arel::Nodes::On.new(Arel::Nodes::Equality.new(arel_table[:id],hierarchy_class.arel_table[:descendant_id])
-                                 .and(hierarchy_class.arel_table[:hierarchy_scope].eq(hierarchy))
-                                )
-        outer_join = Arel::Nodes::OuterJoin.new(hierarchy_class.arel_table,on)
-        joins(outer_join).merge(hierarchy_class.where(generation: 0))
-      }
-      scope :not_this,->(this_id) { where.not(id: this_id)}
+            scope :roots , ->(hierarchy=''){
+              on = Arel::Nodes::On.new(Arel::Nodes::Equality.new(arel_table[:id],hierarchy_class.arel_table[:descendant_id])
+                                       .and(hierarchy_class.arel_table[:hierarchy_scope].eq(hierarchy))
+                                      )
+              outer_join = Arel::Nodes::OuterJoin.new(hierarchy_class.arel_table,on)
+              joins(outer_join).merge(hierarchy_class.where(generation: 0))
+            }
+            scope :not_this,->(this_id) { where.not(id: this_id)}
       }
     end
     delegate :hierarchy_class, to: :class
     def parent=(inpt_parent)
       if inpt_parent.is_a?(Hash)
-         new_parent=inpt_parent[:new_parent]
-         after_node=inpt_parent[:after_node] 
-         before_node=inpt_parent[:before_node] 
-         hierarchy_scope=inpt_parent[:hierarchy_scope] || ''
+        new_parent=inpt_parent[:new_parent]
+        after_node=inpt_parent[:after_node] 
+        before_node=inpt_parent[:before_node] 
+        hierarchy_scope=inpt_parent[:hierarchy_scope] || ''
       else
         new_parent=inpt_parent
         after_node=inpt_parent.children.last unless inpt_parent.nil?
@@ -105,7 +105,7 @@ module ActsAsManyTrees
     def self_and_descendants(hierarchy='')
       unscoped_descendants.merge(hierarchy_class.scope_hierarchy(hierarchy))
     end
-    
+
     def siblings
       self_and_siblings.where.not(id: id)
     end
@@ -116,12 +116,12 @@ module ActsAsManyTrees
 
     def next_sibling
       siblings_after.first
+    end
 
     def descendants(hierarchy='')
       self_and_descendants(hierarchy).not_this(self.id)
     end
 
   end
-
 end
 ActiveRecord::Base.send :include, ActsAsManyTrees::Base
