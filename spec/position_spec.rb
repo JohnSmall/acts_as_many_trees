@@ -61,10 +61,10 @@ RSpec.describe 'order by position' do
        items[5].parent = items[2]
        items[6].parent = items[2]
        items[7].parent = items[1]
-       expect(items[0].descendants.pluck(:id)).to eq([0,1,3,4,7,2,5,6].map{|i| items[i].id})
+       expect(items[0].descendants.pluck(:id)).to eq([1,3,4,7,2,5,6].map{|i| items[i].id})
      end
 
-     it 'should move all descendants when the parent moves'
-     it 'should reset all position number when requested'
+#     it 'should move all descendants when the parent moves'
+#     it 'should reset all position number when requested'
    end
 end
