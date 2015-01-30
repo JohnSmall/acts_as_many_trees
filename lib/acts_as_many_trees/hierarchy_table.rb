@@ -19,28 +19,41 @@ module ActsAsManyTrees
         foreign_key: 'descendant_id', 
         inverse_of: :unscoped_ancestor_links
 
+      has_many :self_and_ancestors,
+        ->(rec){where(hierarchy_scope: rec.hierarchy_scope)},
+        class_name: self.name,
+        foreign_key: 'descendant_id',
+        primary_key: 'ancestor_id'
+
       has_many :ancestors,
-       class_name: self.name,
-       foreign_key: 'descendant_id',
-       primary_key: 'ancestor_id'
+        ->(rec){where(hierarchy_scope: rec.hierarchy_scope).where.not(generation:0)},
+        class_name: self.name,
+        foreign_key: 'descendant_id',
+        primary_key: 'ancestor_id'
+
+      has_many :self_and_descendants,
+        ->(rec){where(hierarchy_scope: rec.hierarchy_scope).where.order(:position)}, 
+        class_name: self.name,
+        foreign_key: 'ancestor_id',
+        primary_key: 'descendant_id'
 
       has_many :descendants,
-       ->(rec){where(hierarchy_scope: rec.hierarchy_scope).order(:position)}, 
-       class_name: self.name,
-       foreign_key: 'ancestor_id',
-       primary_key: 'descendant_id'
+        ->(rec){where(hierarchy_scope: rec.hierarchy_scope).where.not(generation:0).order(:position)}, 
+        class_name: self.name,
+        foreign_key: 'ancestor_id',
+        primary_key: 'descendant_id'
 
       has_many :siblings,
-       ->{where(generation: 1)}, 
-       class_name: self.name,
-       foreign_key: 'ancestor_id',
-       primary_key: 'ancestor_id'
+        ->{where(generation: 1)}, 
+        class_name: self.name,
+        foreign_key: 'ancestor_id',
+        primary_key: 'ancestor_id'
 
       has_many :children,
-       ->(rec){where(hierarchy_scope: rec.hierarchy_scope,generation: 1).order(:position)}, 
-       class_name: self.name,
-       foreign_key: 'ancestor_id',
-       primary_key: 'descendant_id'
+        ->(rec){where(hierarchy_scope: rec.hierarchy_scope,generation: 1).order(:position)}, 
+        class_name: self.name,
+        foreign_key: 'ancestor_id',
+        primary_key: 'descendant_id'
 
       has_many :item_siblings,{through: :siblings, source: :unscoped_descendant}
 
@@ -66,24 +79,73 @@ module ActsAsManyTrees
       end
 
       def self.set_parent_of(item,new_parent,hierarchy_scope='',after_node=nil,before_node=nil)
-        self.delete_ancestors(item,hierarchy_scope) if item
-        self.fill_in_parent_for(new_parent,item,hierarchy_scope,after_node,before_node) if item || new_parent
-        self.fill_in_ancestors_for(new_parent,item,hierarchy_scope) if item && new_parent
-        self.delete_ancestors_of_item_children(item,hierarchy_scope) if item
-        self.set_new_ancestors_of_item_children(item,hierarchy_scope) if item
+        wrk_item   = self.find_or_create_by(descendant_id:item.id,ancestor_id:item.id,generation: 0,hierarchy_scope: hierarchy_scope) if item
+        wrk_parent = self.find_or_create_by(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope) if new_parent
+        if item
+          temp_name = SecureRandom.hex
+          create_tree(wrk_item,wrk_parent,temp_name)
+          delete_item_ancestors(wrk_item)
+          delete_ancestors_of_item_children(wrk_item,hierarchy_scope)
+          rename_tree(temp_name,hierarchy_scope)
+        end
       end
 
       private
+      def self.create_tree(wrk_item,wrk_parent,temp_name)
+        if wrk_parent
+          sql=<<-SQL
+        insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope)
+        select a.ancestor_id,b.descendant_id,a.generation+b.generation+1,'#{temp_name}'
+          from #{table_name} a, #{table_name} b
+          where a.descendant_id=#{wrk_parent.descendant_id}
+          and b.ancestor_id=#{wrk_item.ancestor_id}
+          and a.hierarchy_scope = b.hierarchy_scope
+          and a.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
+        union
+        select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}'
+          from #{table_name} c
+          where c.ancestor_id = #{wrk_item.descendant_id}
+          and c.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
+          SQL
+        else
+          sql=<<-SQL
+        insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope)
+        select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}'
+          from #{table_name} c
+          where c.ancestor_id = #{wrk_item.descendant_id}
+          and c.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
+          SQL
+        end
+        connection.execute(sql)
+      end
+
+      def self.delete_item_ancestors(wrk_item)
+        sql=<<-SQL
+          delete from #{table_name}
+          where hierarchy_scope='#{wrk_item.hierarchy_scope}'
+          and descendant_id=#{wrk_item.descendant_id}
+        SQL
+        connection.execute(sql)
+      end
+
+      def self.rename_tree(old_name,new_name)
+        sql=<<-SQL
+          update #{table_name}
+          set hierarchy_scope='#{new_name}'
+          where hierarchy_scope='#{old_name}'
+        SQL
+        connection.execute(sql)
+      end
+
       def self.delete_ancestors(item,hierarchy_scope)
-        delete_all(descendant_id: item.id,hierarchy_scope: hierarchy_scope )
+        delete.where(descendant_id: item.id,hierarchy_scope: hierarchy_scope ).where.not(generation: 0)
       end
 
       def self.delete_ancestors_of_item_children(item,hierarchy_scope)
         sql = <<-SQL
     delete from #{table_name} as p using #{table_name} as p1 
     where p.descendant_id = p1.descendant_id 
-    and p1.ancestor_id = #{item.id} 
-    and p.generation > p1.generation 
+    and p1.ancestor_id = #{item.descendant_id} 
     and p.hierarchy_scope = p1.hierarchy_scope
     and p1.hierarchy_scope = '#{hierarchy_scope}'
         SQL
@@ -162,11 +224,19 @@ module ActsAsManyTrees
           ActiveRecord::Base.connection.execute(sql)
         end
       end
-def self.reset_descendant_position(parent,hierarchy_scope='')
-#select ancestor_id,descendant_id,generation,position, 
-  #(CAST ((rank() over (partition by ancestor_id order by position)) AS numeric))
-  #/( CAST (count(*) over (partition by ancestor_id)+1 AS numeric)) from item_hierarchies where ancestor_id=1;
-end
+
+      def self.add_self(item,hierarchy)
+        sql=<<-SQL
+       insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
+         values(#{item.id},#{item.id},0,'#{hierarchy}',null)
+        SQL
+        ActiveRecord::Base.connection.execute(sql)
+      end
+      def self.reset_descendant_position(parent,hierarchy_scope='')
+        #select ancestor_id,descendant_id,generation,position, 
+        #(CAST ((rank() over (partition by ancestor_id order by position)) AS numeric))
+        #/( CAST (count(*) over (partition by ancestor_id)+1 AS numeric)) from item_hierarchies where ancestor_id=1;
+      end
     end
   end
 end

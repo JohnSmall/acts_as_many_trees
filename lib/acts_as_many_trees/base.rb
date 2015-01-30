@@ -58,9 +58,10 @@ module ActsAsManyTrees
         scope :roots , ->(hierarchy=''){
           on = Arel::Nodes::On.new(Arel::Nodes::Equality.new(arel_table[:id],hierarchy_class.arel_table[:descendant_id])
                                    .and(hierarchy_class.arel_table[:hierarchy_scope].eq(hierarchy))
+                                   .and(hierarchy_class.arel_table[:generation].not_eq(0))
                                   )
           outer_join = Arel::Nodes::OuterJoin.new(hierarchy_class.arel_table,on)
-          joins(outer_join).merge(hierarchy_class.where(generation: 0))
+          joins(outer_join).merge(hierarchy_class.where(ancestor_id: nil))
         }
         scope :not_this,->(this_id) { where.not(id: this_id)}
     end
