@@ -4,6 +4,7 @@ module ActsAsManyTrees
     extend ActiveSupport::Concern
 
     included do
+      UPPER_BOUND=10**20
       class_attribute :item_class_name
       self.item_class_name = self.to_s.gsub('Hierarchy','')
       class_attribute :item_class
@@ -79,8 +80,30 @@ module ActsAsManyTrees
       end
 
       def self.set_parent_of(item,new_parent,hierarchy_scope='',after_node=nil,before_node=nil)
-        wrk_item   = self.find_or_create_by(descendant_id:item.id,ancestor_id:item.id,generation: 0,hierarchy_scope: hierarchy_scope) if item
-        wrk_parent = self.find_or_create_by(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope) if new_parent
+        if new_parent
+           wrk_parent = self.find_by(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope) 
+           unless wrk_parent
+             position = (after_this(nil,nil,hierarchy_scope)+before_this(nil,hierarchy_scope))/2.0
+             wrk_parent=self.create(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope,position: position)
+           end
+        end
+        if item
+           wrk_item = self.find_by(descendant_id:item.id,ancestor_id:item.id,generation: 0,hierarchy_scope: hierarchy_scope)
+           unless wrk_item
+              after_position  = after_this(wrk_parent,after_node,hierarchy_scope)
+              before_position = before_this(before_node,hierarchy_scope)
+              position = (after_position+before_position)/2.0
+              wrk_item=self.create(descendant_id:item.id,ancestor_id:item.id,generation: 0,hierarchy_scope: hierarchy_scope,position: position)
+           end
+        end
+          
+        #after_position  = after_this(wrk_parent,after_node,hierarchy_scope)
+        #before_position = before_this(before_node,hierarchy_scope)
+        #position = (after_position+before_position)/2.0
+        #wrk_item.position = position
+        #p "item position = #{wrk_item.position}"
+        #p wrk_item.to_yaml
+        #wrk_item.save
         if item
           temp_name = SecureRandom.hex
           create_tree(wrk_item,wrk_parent,temp_name)
@@ -88,29 +111,51 @@ module ActsAsManyTrees
           delete_ancestors_of_item_children(wrk_item,hierarchy_scope)
           rename_tree(temp_name,hierarchy_scope)
         end
+        # the new position is after the maximum of the after_node, the parent, the current maximum of all
+        # or 1000 and before the minimum of the before_node, the parent's next sibling or 10^12
       end
 
       private
+      def self.after_this(wrk_parent,after_node,hierarchy_scope)
+        if after_node
+          position = after_node.position(hierarchy_scope)
+        elsif wrk_parent
+          position = wrk_parent.position
+        else
+          position = self.where(hierarchy_scope: hierarchy_scope).maximum(:position) || 0
+        end
+        position
+      end
+
+      def self.before_this(before_node,hierarchy_scope)
+         if before_node
+           position = before_node.position(hierarchy_scope)
+         else
+           position = UPPER_BOUND
+         end
+         position
+      end
+
       def self.create_tree(wrk_item,wrk_parent,temp_name)
         if wrk_parent
           sql=<<-SQL
-        insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope)
-        select a.ancestor_id,b.descendant_id,a.generation+b.generation+1,'#{temp_name}'
+        insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
+        select a.ancestor_id,b.descendant_id,a.generation+b.generation+1,'#{temp_name}',b.position
           from #{table_name} a, #{table_name} b
           where a.descendant_id=#{wrk_parent.descendant_id}
           and b.ancestor_id=#{wrk_item.ancestor_id}
           and a.hierarchy_scope = b.hierarchy_scope
           and a.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
         union
-        select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}'
+        select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}',c.position
           from #{table_name} c
           where c.ancestor_id = #{wrk_item.descendant_id}
           and c.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
           SQL
         else
           sql=<<-SQL
-        insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope)
-        select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}'
+        insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
+        select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}',c.position
           from #{table_name} c
           where c.ancestor_id = #{wrk_item.descendant_id}
           and c.hierarchy_scope = '#{wrk_item.hierarchy_scope}'

@@ -26,7 +26,7 @@ module ActsAsManyTrees
     included do
       has_many :unscoped_descendant_links,
         ->{order(:position)},
-        class_name:hierarchy_class.to_s,
+        class_name: hierarchy_class.to_s,
         foreign_key: 'ancestor_id',
         dependent: :delete_all,
         inverse_of: :unscoped_ancestor
@@ -123,6 +123,10 @@ module ActsAsManyTrees
 
     def descendants(hierarchy='')
       self_and_descendants(hierarchy).not_this(self.id)
+    end
+
+    def position(hierarchy='')
+       unscoped_ancestor_links.where(ancestor_id: id,hierarchy_scope: hierarchy).first.position
     end
   end
 end
