@@ -81,41 +81,33 @@ module ActsAsManyTrees
 
       def self.set_parent_of(item,new_parent,hierarchy_scope='',after_node=nil,before_node=nil)
         if new_parent
-           wrk_parent = self.find_by(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope) 
-           unless wrk_parent
-             position = (after_this(nil,nil,hierarchy_scope)+before_this(nil,hierarchy_scope))/2.0
-             wrk_parent=self.create(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope,position: position)
-           end
+          wrk_parent = self.find_by(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope) 
+          unless wrk_parent
+            position = (after_this(nil,nil,hierarchy_scope)+before_this(nil,hierarchy_scope))/2.0
+            wrk_parent=self.create(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope,position: position)
+          end
         end
         if item
-           wrk_item = self.find_by(descendant_id:item.id,ancestor_id:item.id,generation: 0,hierarchy_scope: hierarchy_scope)
-           unless wrk_item
-              after_position  = after_this(wrk_parent,after_node,hierarchy_scope)
-              before_position = before_this(before_node,hierarchy_scope)
-              position = (after_position+before_position)/2.0
-              wrk_item=self.create(descendant_id:item.id,ancestor_id:item.id,generation: 0,hierarchy_scope: hierarchy_scope,position: position)
-           end
-        end
-          
-        #after_position  = after_this(wrk_parent,after_node,hierarchy_scope)
-        #before_position = before_this(before_node,hierarchy_scope)
-        #position = (after_position+before_position)/2.0
-        #wrk_item.position = position
-        #p "item position = #{wrk_item.position}"
-        #p wrk_item.to_yaml
-        #wrk_item.save
-        if item
+          after_position  = after_this(wrk_parent,after_node,hierarchy_scope)
+          before_position = before_this(before_node,hierarchy_scope)
+          position = (after_position+before_position)/2.0
+          wrk_item = self.find_by(descendant_id:item.id,ancestor_id:item.id,generation: 0,hierarchy_scope: hierarchy_scope)
+          if wrk_item
+            wrk_item.position = position
+          else
+            wrk_item=self.create(descendant_id:item.id,ancestor_id:item.id,generation: 0,hierarchy_scope: hierarchy_scope,position: position)
+          end
           temp_name = SecureRandom.hex
           create_tree(wrk_item,wrk_parent,temp_name)
           delete_item_ancestors(wrk_item)
           delete_ancestors_of_item_children(wrk_item,hierarchy_scope)
+          reset_descendant_position(wrk_item,before_position,temp_name)
           rename_tree(temp_name,hierarchy_scope)
         end
-        # the new position is after the maximum of the after_node, the parent, the current maximum of all
-        # or 1000 and before the minimum of the before_node, the parent's next sibling or 10^12
       end
 
       private
+      # the new position is after the maximum of the after_node, the parent, the current maximum of all
       def self.after_this(wrk_parent,after_node,hierarchy_scope)
         if after_node
           position = after_node.position(hierarchy_scope)
@@ -127,13 +119,14 @@ module ActsAsManyTrees
         position
       end
 
+      # and before the minimum of the before_node, the parent's next sibling or 10**20
       def self.before_this(before_node,hierarchy_scope)
-         if before_node
-           position = before_node.position(hierarchy_scope)
-         else
-           position = UPPER_BOUND
-         end
-         position
+        if before_node
+          position = before_node.position(hierarchy_scope)
+        else
+          position = UPPER_BOUND
+        end
+        position
       end
 
       def self.create_tree(wrk_item,wrk_parent,temp_name)
@@ -193,6 +186,7 @@ module ActsAsManyTrees
     and p1.ancestor_id = #{item.descendant_id} 
     and p.hierarchy_scope = p1.hierarchy_scope
     and p1.hierarchy_scope = '#{hierarchy_scope}'
+    and p.generation > 0
         SQL
         connection.execute(sql)
       end
@@ -211,76 +205,45 @@ module ActsAsManyTrees
         connection.execute(sql)
       end
 
-      def self.fill_in_parent_for(new_parent,item,hierarchy_scope='',after_node=nil,before_node=nil)
-        if new_parent
-          p_rec = find_by(descendant_id: new_parent.id,hierarchy_scope: hierarchy_scope)
-          unless p_rec
-            p_rec=create!(ancestor_id: new_parent.id,descendant_id: new_parent.id,hierarchy_scope: hierarchy_scope,generation:0,position:Random.rand(1000000))
-          end
-          #          p "p_rec.position = #{p_rec.position}"
-          a_rec = nil
-          if after_node
-            a_rec = after_node
-            a_rec_h = find_by(ancestor_id: new_parent.id, descendant_id:a_rec.id,hierarchy_scope: hierarchy_scope)
-            a_rec_pos = a_rec_h.position
-          elsif new_parent.children.last
-            a_rec = new_parent.children.last
-            a_rec_h = find_by(ancestor_id: new_parent.id, descendant_id:a_rec.id,hierarchy_scope: hierarchy_scope)
-            a_rec_pos = a_rec_h.position
-          else
-            a_rec_pos = p_rec.position
-          end
-
-          if before_node 
-            b_rec = find_by(descendant_id: before_node.id,hierarchy_scope: hierarchy_scope,generation: 1)
-            if b_rec
-              b_position = b_rec.position
-            end
-          end
-          if b_position && !after_node
-            #            p "b_position #{b_position} parent position #{p_rec.position}"
-            new_position = (Random.rand(10)*(b_position - p_rec.position)/11)+p_rec.position
-          elsif b_position && after_node
-            #            p "b_position #{b_position}  after position #{a_rec_pos}"
-            new_position = (Random.rand(10)*(b_position - a_rec_pos)/11)+a_rec_pos
-          else
-            new_position = a_rec_pos + Random.rand(1000000)
-          end
-          #create(ancestor_id: item.id,descendant_id: item.id,hierarchy_scope: hierarchy_scope,position:new_position,generation:0)
-          if item
-            #          p "id = #{item.id} position=#{new_position}"
-            create(ancestor_id: new_parent.id,descendant_id: item.id,generation: 1,hierarchy_scope: hierarchy_scope,position:new_position)
-          end
-        end
-      end
-
-      def self.fill_in_ancestors_for(new_parent,item,hierarchy_scope)
-        if new_parent
-          sql=<<-SQL
-       insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
-       select it.ancestor_id,new_itm.descendant_id,it.generation+1,it.hierarchy_scope,new_itm.position
-       from #{table_name} it 
-       join #{table_name} new_itm on it.descendant_id = new_itm.ancestor_id and it.hierarchy_scope=new_itm.hierarchy_scope
-       where new_itm.ancestor_id=#{new_parent.id}
-       and new_itm.descendant_id=#{item.id}
-       and (it.ancestor_id <> it.descendant_id)
-       and it.hierarchy_scope = '#{hierarchy_scope}'
-          SQL
-          ActiveRecord::Base.connection.execute(sql)
-        end
-      end
-
-      def self.add_self(item,hierarchy)
-        sql=<<-SQL
-       insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
-         values(#{item.id},#{item.id},0,'#{hierarchy}',null)
+      def self.reset_descendant_position(parent,before_position,hierarchy_scope='')
+        after_position = parent.position
+        gap = before_position - after_position
+#        p "before position: #{before_position}, after_position: #{after_position} gap: #{gap}"
+#        sql = <<-SQL
+#        select ancestor_id,descendant_id,hierarchy_scope,(#{after_position} + ( 
+#        (CAST ((rank() over (partition by ancestor_id order by position)-1) AS numeric))
+#        /( CAST (count(*) over (partition by ancestor_id) AS numeric)) * #{gap})) as position
+#        from #{table_name} 
+#        where ancestor_id=#{parent.descendant_id}
+#        and hierarchy_scope='#{hierarchy_scope}'
+#        SQL
+#        res = connection.execute(sql)
+#        res.each_row do |row|
+#          p row
+#        end
+        sql = <<-SQL
+        with new_position as (select ancestor_id,descendant_id,hierarchy_scope,(#{after_position} + ( 
+        (CAST ((rank() over (partition by ancestor_id order by position)-1) AS numeric))
+        /( CAST (count(*) over (partition by ancestor_id) AS numeric)) * #{gap})) as position
+        from #{table_name} 
+        where ancestor_id=#{parent.descendant_id}
+        and hierarchy_scope='#{hierarchy_scope}'
+        )
+        update  
+        #{table_name} as t 
+        set position = new_position.position
+        from new_position
+        where t.descendant_id = new_position.descendant_id
+        and t.hierarchy_scope = new_position.hierarchy_scope
         SQL
-        ActiveRecord::Base.connection.execute(sql)
-      end
-      def self.reset_descendant_position(parent,hierarchy_scope='')
-        #select ancestor_id,descendant_id,generation,position, 
-        #(CAST ((rank() over (partition by ancestor_id order by position)) AS numeric))
-        #/( CAST (count(*) over (partition by ancestor_id)+1 AS numeric)) from item_hierarchies where ancestor_id=1;
+        connection.execute(sql)
+#        sql=<<-SQL
+#        select * from #{table_name} where hierarchy_scope='#{hierarchy_scope}' order by position
+#        SQL
+#        res = connection.execute(sql)
+#        res.each_row do |row|
+#          p row
+#        end
       end
     end
   end

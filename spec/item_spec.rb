@@ -30,6 +30,12 @@ describe Item do
       expect(@items[1].self_and_ancestors.pluck(:generation).sort).to eq([0,1]) 
     end
 
+    it 'should include itself in self_and_ancestors when the parent moves' do
+      @items[1].parent = @items[2]
+      @items[2].parent = @items[3]
+      expect(@items[1].self_and_ancestors.pluck(:id).sort).to include(@items[1].id) 
+    end
+
     it 'should set the new ancestors when the parent moves' do
       @items[1].parent = @items[2]
       @items[2].parent = @items[3]
