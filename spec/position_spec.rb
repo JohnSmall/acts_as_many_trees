@@ -86,6 +86,5 @@ RSpec.describe 'order by position' do
 #       items.each_with_index{|e,i| puts "#{i}:#{e.id}:#{e.position}"}
        expect(items[0].descendants.pluck(:id)).to eq([1,3,4,8,5,7,6,2].map{|i| items[i].id})
      end
-     it 'should reset all position number when requested'
    end
 end
