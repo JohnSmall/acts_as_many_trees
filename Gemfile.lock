@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    acts_as_many_trees (0.0.3)
+    acts_as_many_trees (0.0.4)
       rails (~> 4.1)
 
 GEM
@@ -106,6 +106,6 @@ PLATFORMS
 
 DEPENDENCIES
   acts_as_many_trees!
-  factory_girl_rails
-  pg
-  rspec-rails
+  factory_girl_rails (~> 4.5.0)
+  pg (~> 0.17.1)
+  rspec-rails (~> 3.1.0)

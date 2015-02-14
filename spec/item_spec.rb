@@ -6,12 +6,34 @@ describe Item do
     it 'should respond to parent' do
       expect(item).to respond_to(:parent)
     end
+    it 'should respond to self_and_ancestors' do
+      expect(item).to respond_to(:self_and_ancestors)
+    end
+    it 'should respond to self_and_descendants' do
+      expect(item).to respond_to(:self_and_descendants)
+    end
   end
   describe 'add parent' do
     before(:each){@items = create_list(:item,6)}
     it 'should set the parent' do
       @items[1].parent = @items[2]
       expect(@items[1].parent).to eq(@items[2])
+    end
+
+    it 'should include itself in self_and_ancestors' do
+      @items[1].parent = @items[2]
+      expect(@items[1].self_and_ancestors.pluck(:id).sort).to eq([1,2].map{|i| @items[i].id}.sort) 
+    end
+
+    it 'should set generation=0 in for self in self_and_ancestors' do
+      @items[1].parent = @items[2]
+      expect(@items[1].self_and_ancestors.pluck(:generation).sort).to eq([0,1]) 
+    end
+
+    it 'should include itself in self_and_ancestors when the parent moves' do
+      @items[1].parent = @items[2]
+      @items[2].parent = @items[3]
+      expect(@items[1].self_and_ancestors.pluck(:id).sort).to include(@items[1].id) 
     end
 
     it 'should set the new ancestors when the parent moves' do
@@ -44,7 +66,7 @@ describe Item do
 
 
     it 'should allow setting the parent to nil' do
-      @items[0].parent = @items[1]
+      @items[0].parent = @items[2]
       @items[2].parent = @items[3]
       @items[2].parent = nil
       expect(@items[2].ancestors.pluck(:id)).to be_empty
@@ -71,7 +93,7 @@ describe Item do
 
     it 'should make the parent a root even if the child is nil' do
       @items[0].add_child(nil)
-      expect(Item.roots.pluck(:id)).to eq([@items[0].id])
+      expect(Item.roots.pluck(:id)).to include(@items[0].id)
     end
 
     it 'should list the roots' do
@@ -106,6 +128,14 @@ describe Item do
       @items[4].parent = @items[5]
       expect{
         @items[5].parent = @items[0]}.to raise_error
+    end
+
+    describe 'self_and_ancestors' do
+      it 'should include self in self and ancestors' do
+        @items[1].parent = @items[0]
+        @items[2].parent = @items[1]
+        expect(@items[2].self_and_ancestors.pluck(:id).sort).to include(@items[2].id)
+      end
     end
 
     describe 'with scopes' do

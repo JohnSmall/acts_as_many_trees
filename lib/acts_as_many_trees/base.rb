@@ -26,7 +26,7 @@ module ActsAsManyTrees
     included do
       has_many :unscoped_descendant_links,
         ->{order(:position)},
-        class_name:hierarchy_class.to_s,
+        class_name: hierarchy_class.to_s,
         foreign_key: 'ancestor_id',
         dependent: :delete_all,
         inverse_of: :unscoped_ancestor
@@ -58,9 +58,10 @@ module ActsAsManyTrees
         scope :roots , ->(hierarchy=''){
           on = Arel::Nodes::On.new(Arel::Nodes::Equality.new(arel_table[:id],hierarchy_class.arel_table[:descendant_id])
                                    .and(hierarchy_class.arel_table[:hierarchy_scope].eq(hierarchy))
+                                   .and(hierarchy_class.arel_table[:generation].not_eq(0))
                                   )
           outer_join = Arel::Nodes::OuterJoin.new(hierarchy_class.arel_table,on)
-          joins(outer_join).merge(hierarchy_class.where(generation: 0))
+          joins(outer_join).merge(hierarchy_class.where(ancestor_id: nil))
         }
         scope :not_this,->(this_id) { where.not(id: this_id)}
     end
@@ -122,6 +123,10 @@ module ActsAsManyTrees
 
     def descendants(hierarchy='')
       self_and_descendants(hierarchy).not_this(self.id)
+    end
+
+    def position(hierarchy='')
+       unscoped_ancestor_links.where(ancestor_id: id,hierarchy_scope: hierarchy).first.position
     end
   end
 end
