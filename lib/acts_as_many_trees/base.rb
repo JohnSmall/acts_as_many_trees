@@ -45,12 +45,12 @@ module ActsAsManyTrees
          :source=>:item_siblings
         }
       has_many :siblings_before,
-        ->{where('unscoped_ancestor_links_siblings_before_join.position > item_hierarchies.position').where('unscoped_ancestor_links_siblings_before_join.generation=1')},
+        ->{where("unscoped_ancestor_links_siblings_before_join.position > #{hierarchy_table_name}.position").where('unscoped_ancestor_links_siblings_before_join.generation=1')},
         {:through=>:unscoped_ancestor_links, 
          :source=>:item_siblings
         }
       has_many :siblings_after,
-        ->{where('unscoped_ancestor_links_siblings_after_join.position < item_hierarchies.position').where('unscoped_ancestor_links_siblings_after_join.generation=1')},
+        ->{where("unscoped_ancestor_links_siblings_after_join.position < #{hierarchy_table_name}.position").where('unscoped_ancestor_links_siblings_after_join.generation=1')},
         {:through=>:unscoped_ancestor_links, 
          :source=>:item_siblings
         }
