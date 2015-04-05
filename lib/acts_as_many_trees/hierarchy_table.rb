@@ -4,7 +4,7 @@ module ActsAsManyTrees
     extend ActiveSupport::Concern
 
     included do
-      UPPER_BOUND=10**20
+      UPPER_BOUND=10**20 unless !!defined?(UPPER_BOUND)
       class_attribute :item_class_name
       self.item_class_name = self.to_s.gsub('Hierarchy','')
       class_attribute :item_class
