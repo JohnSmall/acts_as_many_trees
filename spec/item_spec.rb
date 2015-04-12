@@ -199,10 +199,21 @@ describe Item do
 
       it 'should accept the scope from the parent' do
         named_item = create(:named_item)
-        puts "named item default name = #{named_item.default_hierarchy_name}"
-        puts "item name =#{named_item.name}"
         @items[0].parent = named_item
-        expect(named_item.children(named_item.default_hierarchy_name)).to include(@items[0])
+        expect(named_item.children(named_item.default_tree_name)).to include(@items[0])
+      end
+
+      it 'should use a default named scope for the childen' do
+        named_item = create(:named_item)
+        @items[0].parent = named_item
+        expect(named_item.children).to include(@items[0])
+      end
+
+      it 'the children should maintain their own scope for their own childre' do
+        named_item = create(:named_item)
+        @items[0].parent = named_item
+        @items[1].parent = @items[0]
+        expect(named_item.descendants).not_to include(@items[1])
       end
 
 

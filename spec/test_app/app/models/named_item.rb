@@ -1,6 +1,6 @@
 class NamedItem < Item
-  def default_hierarchy_name
-    'named_item'
+  def default_tree_name
+    'named_tree_1'
   end
 end
 

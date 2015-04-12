@@ -20,6 +20,11 @@ module ActsAsManyTrees
     def hierarchy_table_name
       hierarchy_class.table_name
     end
+
+    def default_tree_name
+      ''
+    end
+
   end
   module InstanceMethods
     extend ActiveSupport::Concern
@@ -55,9 +60,9 @@ module ActsAsManyTrees
          :source=>:item_siblings
         }
 
-        scope :roots , ->(hierarchy=''){
+        scope :roots , ->(tree_name=self.default_tree_name){
           on = Arel::Nodes::On.new(Arel::Nodes::Equality.new(arel_table[:id],hierarchy_class.arel_table[:descendant_id])
-                                   .and(hierarchy_class.arel_table[:hierarchy_scope].eq(hierarchy))
+                                   .and(hierarchy_class.arel_table[:hierarchy_scope].eq(tree_name))
                                    .and(hierarchy_class.arel_table[:generation].not_eq(0))
                                   )
           outer_join = Arel::Nodes::OuterJoin.new(hierarchy_class.arel_table,on)
@@ -66,52 +71,52 @@ module ActsAsManyTrees
         scope :not_this,->(this_id) { where.not(id: this_id)}
     end
     delegate :hierarchy_class, to: :class
+    #can be over-ridden in the instance 
+    def default_tree_name
+      ''
+    end
+
     def parent=(inpt_parent)
       if inpt_parent.is_a?(Hash)
         new_parent=inpt_parent[:new_parent]
         after_node=inpt_parent[:after_node] 
         before_node=inpt_parent[:before_node] 
-        hierarchy_scope=inpt_parent[:hierarchy_scope] || ''
+        tree_name=inpt_parent[:tree_name] || ''
       else
         new_parent=inpt_parent
         after_node=inpt_parent.children.last unless inpt_parent.nil?
         before_node=inpt_parent.next_sibling unless inpt_parent.nil?
-        if inpt_parent.respond_to?(:default_hierarchy_name)
-          hierarchy_scope = inpt_parent.default_hierarchy_name
-        else
-          hierarchy_scope = ''
-        end
-        puts "2.hierarchy_scope '#{hierarchy_scope}'"
+        tree_name = inpt_parent ? inpt_parent.default_tree_name : self.default_tree_name
       end  
-      hierarchy_class.set_parent_of(self,new_parent,hierarchy_scope,after_node,before_node)
+      hierarchy_class.set_parent_of(self,new_parent,tree_name,after_node,before_node)
     end
 
-    def set_parent(new_parent,hierarchy_scope='')
-      hierarchy_class.set_parent_of(self,new_parent,hierarchy_scope)
+    def set_parent(new_parent,tree_name=self.default_tree_name)
+      hierarchy_class.set_parent_of(self,new_parent,tree_name)
     end
 
-    def add_child(new_child,hierarchy_scope='')
-      hierarchy_class.set_parent_of(new_child,self,hierarchy_scope)
+    def add_child(new_child,tree_name=self.default_tree_name)
+      hierarchy_class.set_parent_of(new_child,self,tree_name)
     end
 
-    def parent(hierarchy_scope='')
-      ancestors(hierarchy_scope).where('generation=1').first
+    def parent(tree_name=self.default_tree_name)
+      ancestors(tree_name).where('generation=1').first
     end
 
-    def children(hierarchy_scope='')
-      descendants(hierarchy_scope).where('generation=1')
+    def children(tree_name=self.default_tree_name)
+      descendants(tree_name).where('generation=1')
     end
 
-    def self_and_ancestors(hierarchy='')
-      unscoped_ancestors.merge(hierarchy_class.scope_hierarchy(hierarchy))
+    def self_and_ancestors(tree_name=self.default_tree_name)
+      unscoped_ancestors.merge(hierarchy_class.scope_hierarchy(tree_name))
     end
 
-    def ancestors(hierarchy='')
-      self_and_ancestors(hierarchy).not_this(self.id)
+    def ancestors(tree_name=self.default_tree_name)
+      self_and_ancestors(tree_name).not_this(self.id)
     end
 
-    def self_and_descendants(hierarchy='')
-      unscoped_descendants.merge(hierarchy_class.scope_hierarchy(hierarchy))
+    def self_and_descendants(tree_name=self.default_tree_name)
+      unscoped_descendants.merge(hierarchy_class.scope_hierarchy(tree_name))
     end
 
     def siblings
@@ -126,12 +131,12 @@ module ActsAsManyTrees
       siblings_after.first
     end
 
-    def descendants(hierarchy='')
-      self_and_descendants(hierarchy).not_this(self.id)
+    def descendants(tree_name=self.default_tree_name)
+      self_and_descendants(tree_name).not_this(self.id)
     end
 
-    def position(hierarchy='')
-       unscoped_ancestor_links.where(ancestor_id: id,hierarchy_scope: hierarchy).first.position
+    def position(tree_name=self.default_tree_name)
+       unscoped_ancestor_links.where(ancestor_id: id,hierarchy_scope: tree_name).first.position
     end
   end
 end
