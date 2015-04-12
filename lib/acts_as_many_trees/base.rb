@@ -76,7 +76,12 @@ module ActsAsManyTrees
         new_parent=inpt_parent
         after_node=inpt_parent.children.last unless inpt_parent.nil?
         before_node=inpt_parent.next_sibling unless inpt_parent.nil?
-        hierarchy_scope = ''
+        if inpt_parent.respond_to?(:default_hierarchy_name)
+          hierarchy_scope = inpt_parent.default_hierarchy_name
+        else
+          hierarchy_scope = ''
+        end
+        puts "2.hierarchy_scope '#{hierarchy_scope}'"
       end  
       hierarchy_class.set_parent_of(self,new_parent,hierarchy_scope,after_node,before_node)
     end

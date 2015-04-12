@@ -197,6 +197,14 @@ describe Item do
         expect(@items[1].ancestors('a').pluck(:id).sort).to eq([@items[2].id,@items[3].id])
       end
 
+      it 'should accept the scope from the parent' do
+        named_item = create(:named_item)
+        puts "named item default name = #{named_item.default_hierarchy_name}"
+        puts "item name =#{named_item.name}"
+        @items[0].parent = named_item
+        expect(named_item.children(named_item.default_hierarchy_name)).to include(@items[0])
+      end
+
 
       it 'should allow setting the parent to nil' do
         @items[0].set_parent(@items[1],'a')
