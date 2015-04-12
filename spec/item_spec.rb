@@ -197,6 +197,25 @@ describe Item do
         expect(@items[1].ancestors('a').pluck(:id).sort).to eq([@items[2].id,@items[3].id])
       end
 
+      it 'should accept the scope from the parent' do
+        named_item = create(:named_item)
+        @items[0].parent = named_item
+        expect(named_item.children(named_item.default_tree_name)).to include(@items[0])
+      end
+
+      it 'should use a default named scope for the childen' do
+        named_item = create(:named_item)
+        @items[0].parent = named_item
+        expect(named_item.children).to include(@items[0])
+      end
+
+      it 'the children should maintain their own scope for their own childre' do
+        named_item = create(:named_item)
+        @items[0].parent = named_item
+        @items[1].parent = @items[0]
+        expect(named_item.descendants).not_to include(@items[1])
+      end
+
 
       it 'should allow setting the parent to nil' do
         @items[0].set_parent(@items[1],'a')
