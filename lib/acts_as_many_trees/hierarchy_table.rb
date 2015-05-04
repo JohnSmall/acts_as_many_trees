@@ -83,14 +83,14 @@ module ActsAsManyTrees
         if new_parent
           wrk_parent = self.find_by(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope) 
           unless wrk_parent
-            position = (after_this(nil,nil,hierarchy_scope)+before_this(nil,hierarchy_scope))/2.0
+            position = ((after_this(nil,nil,hierarchy_scope)+before_this(nil,hierarchy_scope))/2.0).round(15)
             wrk_parent=self.create(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope,position: position)
           end
         end
         if item
           after_position  = after_this(wrk_parent,after_node,hierarchy_scope)
           before_position = before_this(before_node,hierarchy_scope)
-          position = (after_position+before_position)/2.0
+          position = ((after_position+before_position)/2.0).round(15)
           wrk_item = self.find_by(descendant_id:item.id,ancestor_id:item.id,generation: 0,hierarchy_scope: hierarchy_scope)
           if wrk_item
             wrk_item.position = position
