@@ -154,7 +154,7 @@ module ActsAsManyTrees
           and c.ancestor_id <> c.descendant_id
           and c.hierarchy_scope = '#{existing_name}'
         union
-        select #{wrk_parent.descendant_id},c.descendant_id,c.generation,'#{temp_name}',c.position
+        select #{wrk_parent.descendant_id},c.descendant_id,#{wrk_parent.generation}+c.generation+1,'#{temp_name}',c.position
           from #{table_name} c
           where c.ancestor_id = #{wrk_item.descendant_id}
           and c.ancestor_id <> c.descendant_id
