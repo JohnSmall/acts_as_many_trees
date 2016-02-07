@@ -98,6 +98,8 @@ module ActsAsManyTrees
             wrk_item=self.create(descendant_id:item.id,ancestor_id:item.id,generation: 0,hierarchy_scope: hierarchy_scope,position: position)
           end
           temp_name = SecureRandom.hex
+          # BEWARE this works when added default trees and adding default trees to a new scope but it won't work when moving
+          # items within a named tree or when adding items from one named scope to another
           create_tree(wrk_item,wrk_parent,temp_name)
           delete_item_ancestors(wrk_item)
           delete_ancestors_of_item_children(wrk_item,hierarchy_scope)
@@ -129,9 +131,10 @@ module ActsAsManyTrees
         position
       end
 
-      def self.create_tree(wrk_item,wrk_parent,temp_name)
+      def self.create_tree(wrk_item,wrk_parent,temp_name,existing_name='')
         if wrk_parent
-          sql=<<-SQL
+          if existing_name != wrk_item.hierarchy_scope
+            sql=<<-SQL
         insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
         select a.ancestor_id,b.descendant_id,a.generation+b.generation+1,'#{temp_name}',b.position
           from #{table_name} a, #{table_name} b
@@ -144,7 +147,35 @@ module ActsAsManyTrees
           from #{table_name} c
           where c.ancestor_id = #{wrk_item.descendant_id}
           and c.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
-          SQL
+        union
+        select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}',c.position
+          from #{table_name} c
+          where c.ancestor_id = #{wrk_item.descendant_id}
+          and c.ancestor_id <> c.descendant_id
+          and c.hierarchy_scope = '#{existing_name}'
+        union
+        select #{wrk_parent.descendant_id},c.descendant_id,c.generation,'#{temp_name}',c.position
+          from #{table_name} c
+          where c.ancestor_id = #{wrk_item.descendant_id}
+          and c.ancestor_id <> c.descendant_id
+          and c.hierarchy_scope = '#{existing_name}'
+            SQL
+          else
+            sql=<<-SQL
+        insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
+        select a.ancestor_id,b.descendant_id,a.generation+b.generation+1,'#{temp_name}',b.position
+          from #{table_name} a, #{table_name} b
+          where a.descendant_id=#{wrk_parent.descendant_id}
+          and b.ancestor_id=#{wrk_item.ancestor_id}
+          and a.hierarchy_scope = b.hierarchy_scope
+          and a.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
+        union
+        select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}',c.position
+          from #{table_name} c
+          where c.ancestor_id = #{wrk_item.descendant_id}
+          and c.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
+            SQL
+          end
         else
           sql=<<-SQL
         insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
@@ -155,6 +186,10 @@ module ActsAsManyTrees
           SQL
         end
         connection.execute(sql)
+        #        puts '============='
+        #        wrk_item.class.find_by_sql("select * from #{table_name} where hierarchy_scope='#{temp_name}'").each do | i |
+        #          puts "a=#{i.ancestor_id} d=#{i.descendant_id} scope = #{i.hierarchy_scope} wrk.a = #{wrk_item.ancestor_id} wrk.b=#{wrk_item.descendant_id} parent_scope = #{wrk_parent.hierarchy_scope} parent.a =#{wrk_parent.ancestor_id} parent.d =#{wrk_parent.descendant_id}"
+        #        end
       end
 
       def self.delete_item_ancestors(wrk_item)
@@ -208,19 +243,19 @@ module ActsAsManyTrees
       def self.reset_descendant_position(parent,before_position,hierarchy_scope='')
         after_position = parent.position
         gap = before_position - after_position
-#        p "before position: #{before_position}, after_position: #{after_position} gap: #{gap}"
-#        sql = <<-SQL
-#        select ancestor_id,descendant_id,hierarchy_scope,(#{after_position} + ( 
-#        (CAST ((rank() over (partition by ancestor_id order by position)-1) AS numeric))
-#        /( CAST (count(*) over (partition by ancestor_id) AS numeric)) * #{gap})) as position
-#        from #{table_name} 
-#        where ancestor_id=#{parent.descendant_id}
-#        and hierarchy_scope='#{hierarchy_scope}'
-#        SQL
-#        res = connection.execute(sql)
-#        res.each_row do |row|
-#          p row
-#        end
+        #        p "before position: #{before_position}, after_position: #{after_position} gap: #{gap}"
+        #        sql = <<-SQL
+        #        select ancestor_id,descendant_id,hierarchy_scope,(#{after_position} + ( 
+        #        (CAST ((rank() over (partition by ancestor_id order by position)-1) AS numeric))
+        #        /( CAST (count(*) over (partition by ancestor_id) AS numeric)) * #{gap})) as position
+        #        from #{table_name} 
+        #        where ancestor_id=#{parent.descendant_id}
+        #        and hierarchy_scope='#{hierarchy_scope}'
+        #        SQL
+        #        res = connection.execute(sql)
+        #        res.each_row do |row|
+        #          p row
+        #        end
         sql = <<-SQL
         with new_position as (select ancestor_id,descendant_id,hierarchy_scope,(#{after_position} + ( 
         (CAST ((rank() over (partition by ancestor_id order by position)-1) AS numeric))
@@ -237,13 +272,13 @@ module ActsAsManyTrees
         and t.hierarchy_scope = new_position.hierarchy_scope
         SQL
         connection.execute(sql)
-#        sql=<<-SQL
-#        select * from #{table_name} where hierarchy_scope='#{hierarchy_scope}' order by position
-#        SQL
-#        res = connection.execute(sql)
-#        res.each_row do |row|
-#          p row
-#        end
+        #        sql=<<-SQL
+        #        select * from #{table_name} where hierarchy_scope='#{hierarchy_scope}' order by position
+        #        SQL
+        #        res = connection.execute(sql)
+        #        res.each_row do |row|
+        #          p row
+        #        end
       end
     end
   end
