@@ -243,7 +243,6 @@ describe Item do
         expect(@items[0].descendants).to include(@items[2])
       end
 
-
       it 'should allow setting the parent to nil' do
         @items[0].set_parent(@items[1],'a')
         @items[2].set_parent(@items[3],'a')
@@ -253,6 +252,37 @@ describe Item do
         expect(@items[2].ancestors('a').pluck(:id)).to be_empty
         expect(@items[2].ancestors('b').pluck(:id)).not_to be_empty
       end
+
+      context 'with items that have default hierarchy names' do
+        let(:named_item){create(:named_item)}
+        it 'should accept the scope from the parent' do
+          @items[0].parent = named_item
+          expect(named_item.children(named_item.default_tree_name)).to include(@items[0])
+        end
+
+        it 'should use a default named scope for the childen' do
+          @items[0].parent = named_item
+          expect(named_item.children).to include(@items[0])
+        end
+
+        it 'the children should maintain their own scope for their own children' do
+          @items[0].parent = named_item
+          @items[1].parent = @items[0]
+          expect(named_item.descendants).not_to include(@items[1])
+        end
+        #this is to resolve a strange problem discovered when testing a hiearchy with named defaults mixed with the standard hierarchy
+        it 'should allow crossing hierarchies' do
+          (0..0).each do |dummy|
+          @items[0].parent = named_item
+          end
+          named_item.children.each do |child|
+          @items[1].parent = child
+          end
+
+        end
+      end
+
+
     end
   end
 end
