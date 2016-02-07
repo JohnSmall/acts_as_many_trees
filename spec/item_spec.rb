@@ -235,6 +235,18 @@ describe Item do
         expect(@items[0].descendants(named_item.default_tree_name)).to include(@items[3])
       end
 
+      it 'should only have one child' do
+        @items[1].parent = @items[0]
+        @items[2].parent = @items[1]
+        @items[3].parent = @items[2]
+        named_item = create(:named_item)
+        @items[0].parent = named_item
+#        @items[0].class.hierarchy_class.all.each do |i|
+#          puts "a = #{i.ancestor_id} b=#{i.descendant_id} s=#{i.hierarchy_scope}"
+#        end
+        expect(named_item.children).not_to include(@items[1])
+      end
+
       it 'sub-trees should maintain the default scope' do
         @items[1].parent = @items[0]
         @items[2].parent = @items[1]
