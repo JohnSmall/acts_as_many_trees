@@ -136,7 +136,8 @@ module ActsAsManyTrees
     end
 
     def position(tree_name=self.default_tree_name)
-       unscoped_ancestor_links.where(ancestor_id: id,hierarchy_scope: tree_name).first.position
+       link = unscoped_ancestor_links.where(ancestor_id: id,hierarchy_scope: tree_name).first
+       link ? link.position: 0
     end
   end
 end
