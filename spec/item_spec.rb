@@ -197,6 +197,52 @@ describe Item do
         expect(@items[1].ancestors('a').pluck(:id).sort).to eq([@items[2].id,@items[3].id])
       end
 
+      it 'should accept the scope from the parent' do
+        named_item = create(:named_item)
+        @items[0].parent = named_item
+        expect(named_item.children(named_item.default_tree_name)).to include(@items[0])
+      end
+
+      it 'should use a default named scope for the childen' do
+        named_item = create(:named_item)
+        @items[0].parent = named_item
+        expect(named_item.children).to include(@items[0])
+      end
+
+      it 'a complete sub-tree can be added to the named scope' do
+        @items[1].parent = @items[0]
+        @items[2].parent = @items[1]
+        @items[3].parent = @items[2]
+        named_item = create(:named_item)
+        @items[0].parent = named_item
+#        @items[1].set_parent(@items[0],named_item.default_tree_name)
+#        @items[2].set_parent(@items[1],named_item.default_tree_name)
+#        @items[0].class.hierarchy_class.all.each do |i|
+#          puts "a = #{i.ancestor_id} b=#{i.descendant_id} s=#{i.hierarchy_scope}"
+#        end
+        expect(named_item.descendants).to include(@items[3])
+      end
+
+      it 'the sub-tree should match all the way down' do
+        @items[1].parent = @items[0]
+        @items[2].parent = @items[1]
+        @items[3].parent = @items[2]
+        named_item = create(:named_item)
+        @items[0].parent = named_item
+#        @items[0].class.hierarchy_class.all.each do |i|
+#          puts "a = #{i.ancestor_id} b=#{i.descendant_id} s=#{i.hierarchy_scope}"
+#        end
+        expect(@items[0].descendants(named_item.default_tree_name)).to include(@items[3])
+      end
+
+      it 'sub-trees should maintain the default scope' do
+        @items[1].parent = @items[0]
+        @items[2].parent = @items[1]
+        named_item = create(:named_item)
+        @items[0].parent = named_item
+        expect(@items[0].descendants).to include(@items[2])
+      end
+
       it 'should allow setting the parent to nil' do
         @items[0].set_parent(@items[1],'a')
         @items[2].set_parent(@items[3],'a')
