@@ -14,7 +14,7 @@ describe Item do
     end
   end
   describe 'add parent' do
-    before(:each){@items = create_list(:item,6)}
+    before(:each){@items = create_list(:item,10)}
     it 'should set the parent' do
       @items[1].parent = @items[2]
       expect(@items[1].parent).to eq(@items[2])
@@ -64,6 +64,54 @@ describe Item do
       expect(@items[1].ancestors.pluck(:id).sort).to eq([@items[2].id,@items[3].id])
     end
 
+    it 'should create sub-trees all the way down' do
+      # we had a problem where the sub-trees weren't being copied but it only showed up on the third level and beyond
+      @items[2].parent = @items[1]
+      @items[3].parent = @items[2]
+      @items[4].parent = @items[3]
+      @items[5].parent = @items[4]
+      @items[6].parent = @items[5]
+      @items[7].parent = @items[6]
+      @items[8].parent = @items[7]
+      @items[9].parent = @items[8]
+      @items[1].parent = @items[0]
+      (0..9).each do |i|
+        (i..9).each do |j|
+          expect(@items[i].self_and_descendants).to include(@items[j]),"item[#{i}] should have item[#{j}] as a descendant"
+        end
+      end
+    end
+    it 'should create ancestors all the way up' do
+      # we had a problem where the sub-trees weren't being copied but it only showed up on the third level and beyond
+      @items[2].parent = @items[1]
+      @items[3].parent = @items[2]
+      @items[4].parent = @items[3]
+      @items[5].parent = @items[4]
+      @items[6].parent = @items[5]
+      @items[7].parent = @items[6]
+      @items[8].parent = @items[7]
+      @items[9].parent = @items[8]
+      @items[1].parent = @items[0]
+      (0..9).each do |i|
+        (i..9).each do |j|
+          expect(@items[j].self_and_ancestors).to include(@items[i]),"item[#{j}] should have item[#{i}] as a descendant"
+        end
+      end
+    end
+    it 'should have only two roots' do
+      # we had a problem where the sub-trees weren't being copied but it only showed up on the third level and beyond
+      @items[1].parent = @items[0]
+      @items[2].parent = @items[1]
+      @items[3].parent = @items[2]
+      @items[4].parent = @items[3]
+
+      @items[6].parent = @items[5]
+      @items[7].parent = @items[6]
+      @items[8].parent = @items[7]
+      @items[9].parent = @items[8]
+      expect(@items[0].class.roots.pluck(:id)).to match_array([@items[0].id,@items[5].id])
+    end
+
 
     it 'should allow setting the parent to nil' do
       @items[0].parent = @items[2]
@@ -97,11 +145,21 @@ describe Item do
     end
 
     it 'should list the roots' do
-      @items[0].parent = @items[1]
-      @items[1].parent = @items[2]
-      @items[2].parent = @items[3]
-      @items[4].parent = @items[5]
-      expect(Item.roots.pluck(:id).sort).to eq([@items[3].id,@items[5].id])
+      # @items[2].parent = @items[3]
+      # @items[0].parent = @items[1]
+      # @items[1].parent = @items[2]
+      # @items[4].parent = @items[5]
+      ItemHierarchy.debug_tree
+      @items[2].parent = @items[1]
+      @items[3].parent = @items[2]
+
+      @items[7].parent = @items[6]
+      @items[6].parent = @items[5]
+      @items[9].parent = @items[8]
+      @items[8].parent = @items[7]
+      @items[4].parent = @items[0]
+      @items[1].parent = @items[0]
+      expect(Item.roots.pluck(:id)).to match_array([@items[0].id,@items[5].id])
     end
 
     it 'should list the roots when added in a different order' do
@@ -109,15 +167,8 @@ describe Item do
       @items[2].parent = @items[3]
       @items[4].parent = @items[5]
       @items[1].parent = @items[2]
-      expect(Item.roots.pluck(:id).sort).to eq([@items[3].id,@items[5].id])
-    end
-
-    it 'should list the roots when added in a different order' do
-      @items[0].parent = @items[1]
-      @items[2].parent = @items[3]
-      @items[4].parent = @items[5]
-      @items[1].parent = @items[2]
-      expect(Item.roots.pluck(:id).sort).to eq([@items[3].id,@items[5].id])
+      (6..9).each{|n| @items[n].parent=@items[n-1]}
+      expect(Item.roots.pluck(:id)).to match_array([@items[3].id,@items[5].id])
     end
 
     it 'should not allow loops' do
@@ -128,6 +179,20 @@ describe Item do
       @items[4].parent = @items[5]
       expect{
         @items[5].parent = @items[0]}.to raise_error
+    end
+
+    it 'should have a zero generation entry for every item' do
+      @items[0].parent = @items[1]
+      @items[1].parent = @items[2]
+      @items[2].parent = @items[3]
+      # @items[3].parent = @items[4]
+      # @items[4].parent = @items[5]
+      @items[0].class.hierarchy_class.find_by_sql("select * from #{@items[0].class.hierarchy_table_name} order by generation,descendant_id").each do |rec|
+        puts rec.attributes
+      end
+       (1..3).each do |i|
+         expect(@items[i].children.count).to eq(1),"item #{i} did not have a child"
+       end
     end
 
     describe 'self_and_ancestors' do
@@ -209,42 +274,48 @@ describe Item do
         expect(named_item.children).to include(@items[0])
       end
 
-      it 'a complete sub-tree can be added to the named scope' do
-        @items[1].parent = @items[0]
-        @items[2].parent = @items[1]
-        @items[3].parent = @items[2]
-        named_item = create(:named_item)
-        @items[0].parent = named_item
-#        @items[1].set_parent(@items[0],named_item.default_tree_name)
-#        @items[2].set_parent(@items[1],named_item.default_tree_name)
-#        @items[0].class.hierarchy_class.all.each do |i|
-#          puts "a = #{i.ancestor_id} b=#{i.descendant_id} s=#{i.hierarchy_scope}"
-#        end
-        expect(named_item.descendants).to include(@items[3])
-      end
+      context 'copy a complete sub-tree' do
+        let(:named_item){create(:named_item)}
+        before(:each) do
+          @items[2].parent = @items[1]
+          @items[3].parent = @items[2]
+          @items[1].parent = @items[0]
+          @items[0].parent = named_item
+        end
+        it 'a complete sub-tree can be added to the named scope' do
+          expect(named_item.descendants).to include(@items[3])
+        end
 
-      it 'the sub-tree should match all the way down' do
-        @items[1].parent = @items[0]
-        @items[2].parent = @items[1]
-        @items[3].parent = @items[2]
-        named_item = create(:named_item)
-        @items[0].parent = named_item
-#        @items[0].class.hierarchy_class.all.each do |i|
-#          puts "a = #{i.ancestor_id} b=#{i.descendant_id} s=#{i.hierarchy_scope}"
-#        end
-        expect(@items[0].descendants(named_item.default_tree_name)).to include(@items[3])
-      end
+        it 'default should match all the way down' do
+          (0..3).each do |i|
+            (i..3).each do |j|
+              puts "i=#{i} j=#{j}"
+              expect(@items[i].self_and_descendants).to include(@items[j]),"item[#{i}] should have item[#{j}] as a descendant"
+            end
+          end
+        end
 
-      it 'should only have one child' do
-        @items[1].parent = @items[0]
-        @items[2].parent = @items[1]
-        @items[3].parent = @items[2]
-        named_item = create(:named_item)
-        @items[0].parent = named_item
-#        @items[0].class.hierarchy_class.all.each do |i|
-#          puts "a = #{i.ancestor_id} b=#{i.descendant_id} s=#{i.hierarchy_scope}"
-#        end
-        expect(named_item.children).not_to include(@items[1])
+        it 'should match all the way down' do
+          (0..3).each do |i|
+            (i..3).each do |j|
+              puts "i=#{i} j=#{j}"
+              expect(@items[i].self_and_descendants(named_item.default_tree_name)).to include(@items[j]),"item[#{i}] should have item[#{j}] as a descedant"
+            end
+          end
+        end
+
+        it 'should match going back up' do
+          (0..3).each do |i|
+            (i..3).each do |j|
+              puts "i=#{i} j=#{j}"
+              expect(@items[j].self_and_ancestors(named_item.default_tree_name)).to include(@items[i]),"item[#{j}] should have item[#{i}] as an ancestor"
+            end
+          end
+        end
+
+        it 'should only have one child' do
+          expect(named_item.children).not_to include(@items[1])
+        end
       end
 
       it 'sub-trees should maintain the default scope' do
@@ -285,10 +356,10 @@ describe Item do
         #this is to resolve a strange problem discovered when testing a hiearchy with named defaults mixed with the standard hierarchy
         it 'should allow crossing hierarchies' do
           (0..0).each do |dummy|
-          @items[0].parent = named_item
+            @items[0].parent = named_item
           end
           named_item.children.each do |child|
-          @items[1].parent = child
+            @items[1].parent = child
           end
 
         end
