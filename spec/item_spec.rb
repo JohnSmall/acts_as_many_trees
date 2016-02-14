@@ -14,7 +14,7 @@ describe Item do
     end
   end
   describe 'add parent' do
-    before(:each){@items = create_list(:item,6)}
+    before(:each){@items = create_list(:item,10)}
     it 'should set the parent' do
       @items[1].parent = @items[2]
       expect(@items[1].parent).to eq(@items[2])
@@ -96,7 +96,10 @@ describe Item do
       expect(Item.roots.pluck(:id)).to include(@items[0].id)
     end
 
-    it 'should list the roots' do
+    it 'should list the roots - simple' do
+      # puts Item.roots.to_sql
+      # puts Item.roots.count
+      # puts Item.roots('a').count
       @items[0].parent = @items[1]
       @items[1].parent = @items[2]
       @items[2].parent = @items[3]

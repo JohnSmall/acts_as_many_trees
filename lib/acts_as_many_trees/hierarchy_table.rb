@@ -63,7 +63,7 @@ module ActsAsManyTrees
       scope :roots,->do
         t1 = arel_table
         t2 = arel_table.alias
-        t1.project(Arel::star).join(t2,Arel::Nodes::OuterJoin)
+        j=t1.project(Arel::star).join(t2,Arel::Nodes::OuterJoin)
         .on(t1[:ancestor_id]
             .eq(t2[:descendant_id])
             .and(t1[:hierarchy_scope].eq(t2[:hierarchy_scope])
@@ -71,6 +71,7 @@ module ActsAsManyTrees
            )
         .where(t2[:ancestor_id].eq(nil)
               )
+        joins(j)
       end
       scope :self_and_siblings, ->(item,hierarchy_scope='')do
         joins(:siblings)
@@ -107,7 +108,9 @@ module ActsAsManyTrees
           rename_tree(temp_name,hierarchy_scope)
         end
       end
-
+      def self.debug_tree
+        all.order(:ancestor_id).each{|r| puts r.attributes}
+      end
       private
       # the new position is after the maximum of the after_node, the parent, the current maximum of all
       def self.after_this(wrk_parent,after_node,hierarchy_scope)
