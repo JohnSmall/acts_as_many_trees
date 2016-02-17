@@ -61,12 +61,19 @@ module ActsAsManyTrees
         }
 
         scope :roots , ->(tree_name=self.default_tree_name){
-          on = Arel::Nodes::On.new(Arel::Nodes::Equality.new(arel_table[:id],hierarchy_class.arel_table[:descendant_id])
-                                   .and(hierarchy_class.arel_table[:hierarchy_scope].eq(tree_name))
-                                   .and(hierarchy_class.arel_table[:generation].not_eq(0))
+        h1 = hierarchy_class.arel_table
+        h2 = hierarchy_class.arel_table.alias
+          on1 = Arel::Nodes::On.new(Arel::Nodes::Equality.new(arel_table[:id],h1[:descendant_id])
+                                   .and(h1[:hierarchy_scope].eq(tree_name))
+                                   .and(h1[:generation].eq(0))
                                   )
-          outer_join = Arel::Nodes::OuterJoin.new(hierarchy_class.arel_table,on)
-          joins(outer_join).merge(hierarchy_class.where(ancestor_id: nil))
+          on2 = Arel::Nodes::On.new(Arel::Nodes::Equality.new(h1[:ancestor_id],h2[:descendant_id])
+                                    .and(Arel::Nodes::Equality.new(h1[:hierarchy_scope],h2[:hierarchy_scope]))
+                                   .and(h2[:generation].not_eq(0))
+                                   )
+          inner_join = Arel::Nodes::InnerJoin.new(h1,on1)
+          outer_join = Arel::Nodes::OuterJoin.new(h2,on2)
+          joins(inner_join).joins(outer_join).merge(where(Arel::Nodes::Equality.new(h2[:ancestor_id],nil)))
         }
         scope :not_this,->(this_id) { where.not(id: this_id)}
     end
@@ -87,16 +94,17 @@ module ActsAsManyTrees
         after_node=inpt_parent.children.last unless inpt_parent.nil?
         before_node=inpt_parent.next_sibling unless inpt_parent.nil?
         tree_name = inpt_parent ? inpt_parent.default_tree_name : self.default_tree_name
+        existing_tree_name = self.default_tree_name
       end  
-      hierarchy_class.set_parent_of(self,new_parent,tree_name,after_node,before_node)
+      hierarchy_class.set_parent_of(item:self,new_parent:new_parent,hierarchy_scope:tree_name,existing_scope:existing_tree_name,after_node:after_node,before_node:before_node)
     end
 
-    def set_parent(new_parent,tree_name=self.default_tree_name)
-      hierarchy_class.set_parent_of(self,new_parent,tree_name)
+    def set_parent(new_parent:,tree_name:self.default_tree_name,existing_tree:self.default_tree_name)
+      hierarchy_class.set_parent_of(item:self,new_parent:new_parent,hierarchy_scope:tree_name,existing_scope:existing_tree)
     end
 
     def add_child(new_child,tree_name=self.default_tree_name)
-      hierarchy_class.set_parent_of(new_child,self,tree_name)
+      hierarchy_class.set_parent_of(item:new_child,new_parent:self,hierarchy_scope:tree_name)
     end
 
     def parent(tree_name=self.default_tree_name)

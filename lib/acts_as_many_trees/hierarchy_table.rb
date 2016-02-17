@@ -63,7 +63,7 @@ module ActsAsManyTrees
       scope :roots,->do
         t1 = arel_table
         t2 = arel_table.alias
-        t1.project(Arel::star).join(t2,Arel::Nodes::OuterJoin)
+        j=t1.project(Arel::star).join(t2,Arel::Nodes::OuterJoin)
         .on(t1[:ancestor_id]
             .eq(t2[:descendant_id])
             .and(t1[:hierarchy_scope].eq(t2[:hierarchy_scope])
@@ -71,6 +71,7 @@ module ActsAsManyTrees
            )
         .where(t2[:ancestor_id].eq(nil)
               )
+        joins(j)
       end
       scope :self_and_siblings, ->(item,hierarchy_scope='')do
         joins(:siblings)
@@ -79,7 +80,7 @@ module ActsAsManyTrees
         joins(:siblings).where(:position,lt(rec.position))
       end
 
-      def self.set_parent_of(item,new_parent,hierarchy_scope='',after_node=nil,before_node=nil)
+      def self.set_parent_of(item:,new_parent:,hierarchy_scope:'',existing_scope:'',clone_sub_tree:false,after_node:nil,before_node:nil)
         if new_parent
           wrk_parent = self.find_by(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope) 
           unless wrk_parent
@@ -103,12 +104,25 @@ module ActsAsManyTrees
           temp_name = SecureRandom.hex
           # BEWARE this works when added default trees and adding default trees to a new scope but it won't work when moving
           # items within a named tree or when adding items from one named scope to another
-          create_tree(wrk_item,wrk_parent,temp_name)
-          # debug_tree(temp_name)
-          # delete_item_ancestors(wrk_item)
-          where({descendant_id: wrk_item.descendant_id,hierarchy_scope: hierarchy_scope }).delete_all
-          # delete_ancestors(wrk_item,wrk_item.hierarchy_scope)
-          delete_ancestors_of_item_children(wrk_item,hierarchy_scope)
+          if (hierarchy_scope != existing_scope)
+            if clone_sub_tree
+              clone_sub_tree(wrk_item,temp_name)
+            else
+              clone_item_only(item:wrk_item,new_parent:wrk_parent,hierarchy_scope:temp_name)
+            end
+          else
+            # debug_tree
+            # debug_tree(temp_name)
+            # # add_all_ancestors(wrk_item,wrk_parent,temp_name)
+            # puts wrk_item.attributes
+            # puts wrk_parent.attributes
+            create_tree(wrk_item:wrk_item,wrk_parent:wrk_parent,temp_name:temp_name)
+             # debug_tree(temp_name)
+            # delete_item_ancestors(wrk_item)
+            #where({descendant_id: wrk_item.descendant_id,hierarchy_scope: hierarchy_scope }).delete_all
+            # delete_ancestors(wrk_item,wrk_item.hierarchy_scope)
+            delete_ancestors_of_item_children(wrk_item,hierarchy_scope)
+          end
           reset_descendant_position(wrk_item,before_position,temp_name)
           rename_tree(temp_name,hierarchy_scope)
           # debug_tree('')
@@ -119,6 +133,7 @@ module ActsAsManyTrees
       def self.debug_tree(hierarchy_scope='')
         puts '======================'
         self.where(hierarchy_scope:hierarchy_scope).order([:ancestor_id,:generation]).each{|r| puts r.attributes}
+        puts '**********************'
       end
 
       private
@@ -144,38 +159,89 @@ module ActsAsManyTrees
         position
       end
 
-      def self.create_tree(wrk_item,wrk_parent,temp_name,existing_name='')
-        if wrk_parent
-          if existing_name != wrk_item.hierarchy_scope
-            puts 'new hierarchy'
-            sql=<<-SQL
+      def self.clone_item_only(item:,new_parent:,hierarchy_scope:)
+        sql=<<-SQL
+        insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
+        select #{new_parent.descendant_id},a.descendant_id,1,a.hierarchy_scope,a.position
+        from #{table_name} a 
+        where a.ancestor_id = a.descendant_id
+        and a.descendant_id = #{item.descendant_id}
+        and a.hierarchy_scope = '#{hierarchy_scope}'
+        SQL
+      end
+
+      def self.clone_sub_tree(wrk_item,temp_name)
+        sql=<<-SQL
+        insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
+        WITH RECURSIVE sub_trees(ancestor_id,descendant_id,generation,hierarchy_scope,position) AS
+          (select ancestor_id,descendant_id,generation,'#{temp_name}',position from #{table_name}
+           where descendant_id = #{wrk_item.descendant_id} 
+           and hierarchy_scope = '#{wrk_item.hierarchy_scope}'
+        UNION
+           select s.ancestor_id,s.descendant_id,s.generation,'#{temp_name}',s.position
+           from #{table_name} s, sub_trees st
+           where s.ancestor_id = st.descendant_id
+           and s.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
+           )
+           select * from sub_trees;
+        SQL
+        connection.execute(sql)
+      end
+
+      def self.add_all_ancestors(item,parent,temp_name)
+        sql=<<-SQL
         insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
         select a.ancestor_id,b.descendant_id,a.generation+b.generation+1,'#{temp_name}',b.position
           from #{table_name} a, #{table_name} b
-          where a.descendant_id=#{wrk_parent.descendant_id}
-          and b.ancestor_id=#{wrk_item.ancestor_id}
-          and a.hierarchy_scope = b.hierarchy_scope
-          and a.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
-        union
-        select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}',c.position
-          from #{table_name} c
-          where c.ancestor_id = #{wrk_item.descendant_id}
-          and c.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
-        union
-        select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}',c.position
-          from #{table_name} c
-          where c.ancestor_id = #{wrk_item.descendant_id}
-          and c.ancestor_id <> c.descendant_id
-          and c.hierarchy_scope = '#{existing_name}'
-        union
-        select #{wrk_parent.descendant_id},c.descendant_id,#{wrk_parent.generation}+c.generation+1,'#{temp_name}',c.position
-          from #{table_name} c
-          where c.ancestor_id = #{wrk_item.descendant_id}
-          and c.ancestor_id <> c.descendant_id
-          and c.hierarchy_scope = '#{existing_name}'
-            SQL
-          else
-            sql=<<-SQL
+          where a.descendant_id=#{parent.descendant_id}
+          and b.ancestor_id=#{item.descendant_id}
+          and b.hierarchy_scope = '#{temp_name}'
+          and a.hierarchy_scope = '#{parent.hierarchy_scope}'
+        SQL
+        connection.execute(sql)
+      end
+
+      def self.create_tree(wrk_item:,wrk_parent:,temp_name:)
+        if wrk_parent
+          # if existing_name != wrk_item.hierarchy_scope
+          #   puts 'new hierarchy'
+          #   sql=<<-SQL
+          # insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
+          # select a.ancestor_id,b.descendant_id,a.generation+b.generation+1,'#{temp_name}',b.position
+          # from #{table_name} a, #{table_name} b
+          # where a.descendant_id=#{wrk_parent.descendant_id}
+          # and b.ancestor_id=#{wrk_item.ancestor_id}
+          # and a.hierarchy_scope = b.hierarchy_scope
+          # and a.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
+          # union
+          # select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}',c.position
+          # from #{table_name} c
+          # where c.ancestor_id = #{wrk_item.descendant_id}
+          # and c.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
+          # union
+          # select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}',c.position
+          # from #{table_name} c
+          # where c.ancestor_id = #{wrk_item.descendant_id}
+          # and c.ancestor_id <> c.descendant_id
+          # and c.hierarchy_scope = '#{existing_name}'
+          # union
+          # select #{wrk_parent.descendant_id},c.descendant_id,#{wrk_parent.generation}+c.generation+1,'#{temp_name}',c.position
+          # from #{table_name} c
+          # where c.ancestor_id = #{wrk_item.descendant_id}
+          # and c.ancestor_id <> c.descendant_id
+          # and c.hierarchy_scope = '#{existing_name}'
+          # /* add existing descendants of descendants in the new tree */
+          # union
+          # select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}',c.position
+          # from #{table_name} c, #{table_name} d
+          # where c.ancestor_id = d.descendant_id
+          # and d.ancestor_id =#{wrk_item.descendant_id}
+          # and d.hierarchy_scope = c.hierarchy_scope
+          # and c.ancestor_id != c.descendant_id
+          # and c.hierarchy_scope = '#{existing_name}'
+          #   SQL
+          # else
+          sql=<<-SQL
         insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
         /* add self and descendants to the new parent */
         select a.ancestor_id,b.descendant_id,a.generation+b.generation+1,'#{temp_name}',b.position
@@ -184,30 +250,22 @@ module ActsAsManyTrees
           and b.ancestor_id=#{wrk_item.ancestor_id}
           and a.hierarchy_scope = b.hierarchy_scope
           and a.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
-        union
+
         /* add existing descendants in the new tree */
+        union
         select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}',c.position
           from #{table_name} c
           where c.ancestor_id = #{wrk_item.descendant_id}
           and c.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
-         /* add existing descendants of descendants in the new tree */
-        union
-        select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}',c.position
-          from #{table_name} c, #{table_name} d
-          where c.ancestor_id = d.descendant_id
-          and d.ancestor_id =#{wrk_item.descendant_id}
-          and d.hierarchy_scope = c.hierarchy_scope
-          and c.ancestor_id != c.descendant_id
-          and c.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
-            SQL
-          end
+
+          SQL
         else
           sql=<<-SQL
         insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
         select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}',c.position
           from #{table_name} c
           where c.ancestor_id = #{wrk_item.descendant_id}
-          and c.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
+          and c.hierarchy_scope = '#{existing_name}'
           SQL
         end
         connection.execute(sql)
@@ -242,12 +300,14 @@ module ActsAsManyTrees
 
       def self.delete_ancestors_of_item_children(item,hierarchy_scope)
         sql = <<-SQL
-    delete from #{table_name} as p using #{table_name} as p1 
+    delete from #{table_name} as p using #{table_name} as p1, #{table_name} as p2 
     where p.descendant_id = p1.descendant_id 
-    and p1.ancestor_id = #{item.descendant_id} 
+    and p.ancestor_id = p2.ancestor_id
+    and p2.descendant_id = #{item.descendant_id}
+    and p1.ancestor_id = p2.descendant_id
+    and p2.hierarchy_scope = p1.hierarchy_scope
     and p.hierarchy_scope = p1.hierarchy_scope
     and p1.hierarchy_scope = '#{hierarchy_scope}'
-    and p.generation > 0
         SQL
         connection.execute(sql)
       end
