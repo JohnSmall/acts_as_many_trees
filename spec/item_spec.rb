@@ -211,60 +211,60 @@ describe Item do
 
     describe 'with scopes' do
       it 'should list the roots' do
-        @items[0].set_parent( @items[1],'a')
-        @items[2].set_parent( @items[3],'a')
-        @items[1].set_parent( @items[2],'a')
-        @items[4].set_parent( @items[5],'a')
+        @items[0].set_parent(new_parent:  @items[1],tree_name:'a',existing_tree:'a')
+        @items[2].set_parent(new_parent:  @items[3],tree_name:'a',existing_tree:'a')
+        @items[1].set_parent(new_parent:  @items[2],tree_name:'a',existing_tree:'a')
+        @items[4].set_parent(new_parent:  @items[5],tree_name:'a',existing_tree:'a')
         expect(Item.roots('a').pluck(:id)).to match_array([@items[3].id,@items[5].id])
       end
 
       it 'should have different roots for different scopes' do
         #hierarchy scope = 'a'
-        @items[0].set_parent( @items[1],'a')
-        @items[2].set_parent( @items[3],'a')
-        @items[1].set_parent( @items[2],'a')
-        @items[4].set_parent( @items[5],'a')
+        @items[0].set_parent(new_parent:  @items[1],tree_name:'a',existing_tree:'a')
+        @items[2].set_parent(new_parent:  @items[3],tree_name:'a',existing_tree:'a')
+        @items[1].set_parent(new_parent:  @items[2],tree_name:'a',existing_tree:'a')
+        @items[4].set_parent(new_parent:  @items[5],tree_name:'a',existing_tree:'a')
 
         #hierarchy scope = 'b'
-        @items[1].set_parent( @items[0],'b')
-        @items[3].set_parent( @items[2],'b')
-        @items[2].set_parent( @items[1],'b')
-        @items[5].set_parent( @items[4],'b')
+        @items[1].set_parent(new_parent:  @items[0],tree_name:'b',existing_tree:'b')
+        @items[3].set_parent(new_parent:  @items[2],tree_name:'b',existing_tree:'b')
+        @items[2].set_parent(new_parent:  @items[1],tree_name:'b',existing_tree:'b')
+        @items[5].set_parent(new_parent:  @items[4],tree_name:'b',existing_tree:'b')
         expect(Item.roots('a').pluck(:id)).to match_array([@items[3].id,@items[5].id])
         expect(Item.roots('b').pluck(:id)).to match_array([@items[0].id,@items[4].id])
       end
 
       it 'should set the parent' do
-        @items[1].set_parent(new_parent:@items[2],tree_name:'a',existing_tree:'a')
-        @items[1].set_parent(new_parent:@items[3],tree_name:'b',existing_tree:'b')
+        @items[1].set_parent(new_parent: @items[2],tree_name:'a',existing_tree:'a')
+        @items[1].set_parent(new_parent: @items[3],tree_name:'b',existing_tree:'b')
         expect(@items[1].parent('a').id).to eq(@items[2].id)
         expect(@items[1].parent('b').id).to eq(@items[3].id)
       end
       it 'should set the new ancestors when the parent moves' do
-        @items[1].set_parent(@items[2],'a')
-        @items[2].set_parent(@items[3],'a')
+        @items[1].set_parent(new_parent: @items[2],tree_name:'a',existing_tree:'a')
+        @items[2].set_parent(new_parent: @items[3],tree_name:'a',existing_tree:'a')
         expect(@items[1].ancestors('a').pluck(:id)).to match_array([@items[2].id,@items[3].id])
       end
 
       it 'should set ancestors of the descendants to the new parent ancestors' do
-        @items[0].set_parent(@items[1],'a')
-        @items[2].set_parent(@items[3],'a')
-        @items[1].set_parent(@items[2],'a')
+        @items[0].set_parent(new_parent: @items[1],tree_name:'a',existing_tree:'a')
+        @items[2].set_parent(new_parent: @items[3],tree_name:'a',existing_tree:'a')
+        @items[1].set_parent(new_parent: @items[2],tree_name:'a',existing_tree:'a')
         expect(@items[0].ancestors('a').pluck(:id)).to match_array([@items[1].id,@items[2].id,@items[3].id])
       end
 
       it 'should remove old ancestor when setting a new parent' do
-        @items[0].set_parent(@items[1],'a')
-        @items[2].set_parent(@items[3],'a')
-        @items[1].set_parent(@items[2],'a')
-        @items[4].set_parent(@items[5],'a')
-        @items[4].set_parent(@items[0],'a')
+        @items[0].set_parent(new_parent: @items[1],tree_name:'a',existing_tree:'a')
+        @items[2].set_parent(new_parent: @items[3],tree_name:'a',existing_tree:'a')
+        @items[1].set_parent(new_parent: @items[2],tree_name:'a',existing_tree:'a')
+        @items[4].set_parent(new_parent: @items[5],tree_name:'a',existing_tree:'a')
+        @items[4].set_parent(new_parent: @items[0],tree_name:'a',existing_tree:'a')
         expect(@items[4].ancestors('a').pluck(:id)).not_to include(@items[5].id)
       end
 
       it 'should set the grandparent' do
-        @items[2].set_parent(@items[3],'a')
-        @items[1].set_parent(@items[2],'a')
+        @items[2].set_parent(new_parent: @items[3],tree_name:'a',existing_tree:'a')
+        @items[1].set_parent(new_parent: @items[2],tree_name:'a',existing_tree:'a')
         expect(@items[1].ancestors('a').pluck(:id)).to match_array([@items[2].id,@items[3].id])
       end
 
@@ -348,11 +348,11 @@ describe Item do
       end
 
       it 'should allow setting the parent to nil' do
-        @items[0].set_parent(@items[1],'a')
-        @items[2].set_parent(@items[3],'a')
-        @items[0].set_parent(@items[1],'b')
-        @items[2].set_parent(@items[3],'b')
-        @items[2].set_parent(nil,'a')
+        @items[0].set_parent(new_parent: @items[1],tree_name: 'a',existing_tree: 'a')
+        @items[2].set_parent(new_parent: @items[3],tree_name:'a',existing_tree:'a')
+        @items[0].set_parent(new_parent: @items[1],tree_name:'b',existing_tree:'b')
+        @items[2].set_parent(new_parent: @items[3],tree_name:'b',existing_tree:'b')
+        @items[2].set_parent(new_parent: nil,tree_name:'a',existing_tree:'a')
         expect(@items[2].ancestors('a').pluck(:id)).to be_empty
         expect(@items[2].ancestors('b').pluck(:id)).not_to be_empty
       end

@@ -265,7 +265,7 @@ module ActsAsManyTrees
         select c.ancestor_id,c.descendant_id,c.generation,'#{temp_name}',c.position
           from #{table_name} c
           where c.ancestor_id = #{wrk_item.descendant_id}
-          and c.hierarchy_scope = '#{existing_name}'
+          and c.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
           SQL
         end
         connection.execute(sql)

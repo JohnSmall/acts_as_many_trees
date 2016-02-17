@@ -88,13 +88,14 @@ module ActsAsManyTrees
         new_parent=inpt_parent[:new_parent]
         after_node=inpt_parent[:after_node] 
         before_node=inpt_parent[:before_node] 
-        tree_name=inpt_parent[:tree_name] || ''
+        tree_name = inpt_parent[:tree_name] || self.default_tree_name
+        existing_tree_name = self.default_tree_name
       else
         new_parent=inpt_parent
         after_node=inpt_parent.children.last unless inpt_parent.nil?
         before_node=inpt_parent.next_sibling unless inpt_parent.nil?
         tree_name = inpt_parent ? inpt_parent.default_tree_name : self.default_tree_name
-        existing_tree_name = self.default_tree_name
+        existing_tree_name = tree_name
       end  
       hierarchy_class.set_parent_of(item:self,new_parent:new_parent,hierarchy_scope:tree_name,existing_scope:existing_tree_name,after_node:after_node,before_node:before_node)
     end
