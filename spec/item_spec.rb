@@ -271,7 +271,7 @@ describe Item do
       it 'should accept the scope from the parent' do
         named_item = create(:named_item)
         @items[0].parent = named_item
-        expect(named_item.children(named_item.default_tree_name)).to include(@items[0])
+        expect(named_item.children(named_item.default_tree_name).pluck(:id)).to match_array([@items[0].id])
       end
 
       it 'should use a default named scope for the childen' do
@@ -283,7 +283,7 @@ describe Item do
       context 'copy a single item' do
         let(:named_items){create_list(:named_item,2)}
         before(:each) do
-          # @items[2].parent = @items[1]
+          @items[2].parent = @items[1]
           named_items[0].parent = named_items[1]
           @items[3].parent = @items[2]
           @items[1].parent = @items[0]
@@ -300,27 +300,27 @@ describe Item do
       context 'copy a complete sub-tree' do
         let(:named_item){create(:named_item)}
         before(:each) do
-          # @items[2].parent = @items[1]
+          @items[2].parent = @items[1]
           @items[3].parent = @items[2]
           @items[1].parent = @items[0]
-          @items[0].parent(clone_sub_tree:true,new_parent:named_item)
+          @items[0].set_parent(clone_sub_tree:true,new_parent:named_item,tree_name:named_item.default_tree_name)
         end
 
         it 'should have the named item as parent' do
-          puts named_item.id
-          ItemHierarchy.debug_tree(named_item.default_tree_name)
+          # puts named_item.id
+          # ItemHierarchy.debug_tree(named_item.default_tree_name)
           (0..0).each do | i |
             expect(@items[i].self_and_ancestors(named_item.default_tree_name).pluck(:id)).to include(named_item.id)
           end
         end
 
         it 'should match all the way down' do
-          ItemHierarchy.debug_tree(named_item.default_tree_name)
-          puts named_item.id
+          # ItemHierarchy.debug_tree(named_item.default_tree_name)
+          # puts named_item.id
           (0..2).each do |i|
             (i..2).each do |j|
-              puts "i=#{i} #{@items[i].id} j=#{j} #{@items[j].id}"
-              expect(@items[i].self_and_descendants(named_item.default_tree_name)).to include(@items[j]),"item[#{i}] should have item[#{j}] as a descedant"
+              # puts "i=#{i} #{@items[i].id} j=#{j} #{@items[j].id}"
+              expect(@items[i].self_and_descendants(named_item.default_tree_name)).to include(@items[j]),"item[#{i}] should have item[#{j}] as a descendant"
             end
           end
         end
@@ -328,7 +328,7 @@ describe Item do
         it 'should match going back up' do
           (0..3).each do |i|
             (i..3).each do |j|
-              puts "i=#{i} j=#{j}"
+              # puts "i=#{i} j=#{j}"
               expect(@items[j].self_and_ancestors(named_item.default_tree_name)).to include(@items[i]),"item[#{j}] should have item[#{i}] as an ancestor"
             end
           end

@@ -104,12 +104,18 @@ module ActsAsManyTrees
           temp_name = SecureRandom.hex
           # BEWARE this works when added default trees and adding default trees to a new scope but it won't work when moving
           # items within a named tree or when adding items from one named scope to another
+          # puts "hierarchy_scope #{hierarchy_scope} existing_scope #{existing_scope}"
           if (hierarchy_scope != existing_scope)
+             # debug_tree(existing_scope)
+             # debug_tree(hierarchy_scope)
+             # debug_tree(temp_name)
             if clone_sub_tree
-              clone_sub_tree(wrk_item,temp_name)
+              clone_sub_tree(item:wrk_item,temp_name:temp_name,existing_name:existing_scope)
             else
               clone_item_only(item:wrk_item,new_parent:wrk_parent,hierarchy_scope:temp_name)
             end
+            add_all_ancestors(wrk_item,wrk_parent,temp_name)
+            # debug_tree(temp_name)
           else
             # debug_tree
             # debug_tree(temp_name)
@@ -162,26 +168,30 @@ module ActsAsManyTrees
       def self.clone_item_only(item:,new_parent:,hierarchy_scope:)
         sql=<<-SQL
         insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
-        select #{new_parent.descendant_id},a.descendant_id,1,a.hierarchy_scope,a.position
-        from #{table_name} a 
-        where a.ancestor_id = a.descendant_id
+        select b.ancestor_id,a.descendant_id,b.generation+1,'#{hierarchy_scope}',a.position
+        from #{table_name} a,#{table_name} b 
+        where b.descendant_id = #{new_parent.descendant_id}
         and a.descendant_id = #{item.descendant_id}
-        and a.hierarchy_scope = '#{hierarchy_scope}'
+        and a.hierarchy_scope = '#{item.hierarchy_scope}'
+        and a.hierarchy_scope = b.hierarchy_scope
+        and a.generation = 0
         SQL
+        connection.execute(sql)
       end
 
-      def self.clone_sub_tree(wrk_item,temp_name)
+      def self.clone_sub_tree(item:,temp_name:,existing_name:'')
         sql=<<-SQL
         insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
         WITH RECURSIVE sub_trees(ancestor_id,descendant_id,generation,hierarchy_scope,position) AS
           (select ancestor_id,descendant_id,generation,'#{temp_name}',position from #{table_name}
-           where descendant_id = #{wrk_item.descendant_id} 
-           and hierarchy_scope = '#{wrk_item.hierarchy_scope}'
+           where descendant_id = #{item.descendant_id} 
+           and hierarchy_scope = '#{existing_name}'
         UNION
-           select s.ancestor_id,s.descendant_id,s.generation,'#{temp_name}',s.position
+           select s.ancestor_id,s.descendant_id,
+           s.generation,'#{temp_name}',s.position
            from #{table_name} s, sub_trees st
            where s.ancestor_id = st.descendant_id
-           and s.hierarchy_scope = '#{wrk_item.hierarchy_scope}'
+           and s.hierarchy_scope = '#{existing_name}'
            )
            select * from sub_trees;
         SQL
@@ -286,9 +296,14 @@ module ActsAsManyTrees
 
       def self.rename_tree(old_name,new_name)
         sql=<<-SQL
-          update #{table_name}
+          update #{table_name} h1
           set hierarchy_scope='#{new_name}'
           where hierarchy_scope='#{old_name}'
+          and not exists(select h2.ancestor_id from #{table_name} h2
+                         where h1.ancestor_id = h2.ancestor_id
+                         and h1.descendant_id = h2.descendant_id
+                         and h2.hierarchy_scope = '#{new_name}'
+                         )
         SQL
         connection.execute(sql)
       end
