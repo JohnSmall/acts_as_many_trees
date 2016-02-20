@@ -196,9 +196,9 @@ describe Item do
       @items[2].parent = @items[3]
       @items[3].parent = @items[4]
       @items[4].parent = @items[5]
-       (1..5).each do |i|
-         expect(@items[i].children.count).to eq(1),"item #{i} did not have a child"
-       end
+      (1..5).each do |i|
+        expect(@items[i].children.count).to eq(1),"item #{i} did not have a child"
+      end
     end
 
     describe 'self_and_ancestors' do
@@ -290,11 +290,11 @@ describe Item do
           @items[0].parent = named_items[0]
         end
         it 'should have just one descendant' do
-           expect(named_items[0].descendants.pluck(:id)).to match_array([@items[0].id])
+          expect(named_items[0].descendants.pluck(:id)).to match_array([@items[0].id])
         end
 
         it 'the grand-parent should have two descendants' do
-           expect(named_items[1].descendants.pluck(:id)).to match_array([@items[0].id,named_items[0].id])
+          expect(named_items[1].descendants.pluck(:id)).to match_array([@items[0].id,named_items[0].id])
         end
       end
       context 'copy a complete sub-tree' do
@@ -337,6 +337,7 @@ describe Item do
         it 'should only have one child' do
           expect(named_item.children).not_to include(@items[1])
         end
+
       end
 
       it 'sub-trees should maintain the default scope' do
@@ -375,19 +376,94 @@ describe Item do
           expect(named_item.descendants).not_to include(@items[1])
         end
         #this is to resolve a strange problem discovered when testing a hiearchy with named defaults mixed with the standard hierarchy
-        it 'should allow crossing hierarchies' do
-          (0..0).each do |dummy|
-            @items[0].parent = named_item
+        context ' mixed hierarchies' do
+          before(:each) do
+            @items[1].parent = @items[0]
+            @items[1].parent = named_item
           end
-          named_item.children.each do |child|
-            @items[1].parent = child
+          it 'should keep children in the default scope' do
+            expect(@items[0].children.pluck(:id)).to match_array([@items[1].id])
           end
 
+          it 'should add children to the named scope' do
+            expect(named_item.children.pluck(:id)).to match_array([@items[1].id])
+          end
         end
+        context 'named item owned by default item' do
+          before(:each) do
+            @items[1].parent = @items[0]
+            @items[2].parent = @items[0]
+            @items[3].parent = @items[1]
+            @items[4].parent = @items[2]
+            named_item.parent = @items[0]
+            @items[1].parent = named_item
+            @items[2].parent = named_item
+          end
+          context 'without sub-tree' do
+            before(:each) do
+            @items[1].parent = named_item
+            @items[2].parent = named_item
+            end
+          it 'should keep children in the default scope' do
+            expect(@items[0].children.pluck(:id)).to match_array([@items[1].id,@items[2].id,named_item.id])
+          end
+
+          it 'should add children to the named scope' do
+            expect(named_item.children.pluck(:id)).to match_array([@items[1].id,@items[2].id])
+          end
+          it 'should not add grand-children to the named scope' do
+            expect(named_item.descendants.pluck(:id)).to match_array([@items[1].id,@items[2].id])
+          end
+          end
+          context 'with sub-tree' do
+            before(:each) do
+            @items[1].set_parent(clone_sub_tree:true,new_parent:named_item,tree_name:named_item.default_tree_name)
+            @items[2].set_parent(clone_sub_tree:true,new_parent:named_item,tree_name:named_item.default_tree_name)
+            end
+          it 'should keep children in the default scope' do
+            expect(@items[0].children.pluck(:id)).to match_array([@items[1].id,@items[2].id,named_item.id])
+          end
+          it 'should keep grand_children in the default scope' do
+            expect(@items[0].descendants.pluck(:id)).to match_array((1..4).map{|i| @items[i].id}+[named_item.id])
+          end
+
+          it 'should add children to the named scope' do
+            expect(named_item.children.pluck(:id)).to match_array([@items[1].id,@items[2].id])
+          end
+          it 'should add grand-children to the named scope' do
+            expect(named_item.descendants.pluck(:id)).to match_array((1..4).map{|i| @items[i].id})
+          end
+          end
+          #   #this spec is required to test a named item owned by something in the default hierarchy
+          #   #and the named item then owns other things which are also owned by its parent
+          #   #create a mini tree
+          #   before(:each) do
+          #   @items[1].parent = @items[0]
+          #   # @items[2].parent = @items[0]
+          #   #make a named item a child of the root
+          #   # named_item.parent = @items[0]
+          #   #add some items to children of the named item
+          #   # @items[1].parent = named_item
+          #   @items[2].parent = named_item
+          #   end
+
+          #   it 'should appear in the default scope' do
+          #     expect(@items[0].children.pluck(:id)).to match_array([@items[1].id,@items[2].id,named_item.id])
+          #   end
+
+          #   it 'should own the items in its own scope' do
+          #     expect(named_item.children.pluck(:id)).to match_array([@items[1].id,@items[2].id])
+          #   end
+
+          #   it 'should maintain the existing default tree' do
+          #     pending
+          #   end
+          # end
+        end
+        end
+
+
       end
-
-
     end
   end
-end
 
