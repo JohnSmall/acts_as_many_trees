@@ -17,20 +17,20 @@ RSpec.describe 'order by position' do
        items[4].parent=items[1]
        items[3].parent=items[1]
        items[2].parent=items[1]
-       expect(items[1].children.pluck(:id)).to eq([4,3,2].map{|n| items[n].id})
+       expect(items[1].children.ordered.pluck(:id)).to eq([4,3,2].map{|n| items[n].id})
     end
      it 'should allow a new record at the begining' do
        items[4].parent=items[1]
        items[3].parent={new_parent:items[1],before_node:items[4]}
        items[2].parent={new_parent:items[1],before_node:items[3]}
-       expect(items[1].children.pluck(:id)).to eq([2,3,4].map{|n| items[n].id})
+       expect(items[1].children.ordered.pluck(:id)).to eq([2,3,4].map{|n| items[n].id})
      end
      it 'should allow a new record between two siblings' do
        items[4].parent=items[1]
        items[3].parent={new_parent:items[1],before_node:items[4]}
        items[2].parent={new_parent:items[1],before_node:items[3]}
        items[0].parent={new_parent:items[1],before_node:items[4],after_node:items[3]}
-       expect(items[1].children.pluck(:id)).to eq([2,3,0,4].map{|n| items[n].id})
+       expect(items[1].children.ordered.pluck(:id)).to eq([2,3,0,4].map{|n| items[n].id})
      end
      
      it 'should have self and siblings' do
@@ -69,7 +69,7 @@ RSpec.describe 'order by position' do
        items[5].parent = items[2]
        items[6].parent = items[2]
        items[7].parent = items[1]
-       expect(items[0].descendants.pluck(:id)).to eq([1,3,4,7,2,5,6].map{|i| items[i].id})
+       expect(items[0].descendants.ordered.pluck(:id)).to eq([1,3,4,7,2,5,6].map{|i| items[i].id})
      end
 
      it 'should move all descendants when the parent moves' do
@@ -84,7 +84,7 @@ RSpec.describe 'order by position' do
 #       p items[0].descendants.pluck(:id)
        items[8].parent = items[1]
 #       items.each_with_index{|e,i| puts "#{i}:#{e.id}:#{e.position}"}
-       expect(items[0].descendants.pluck(:id)).to eq([1,3,4,8,5,7,6,2].map{|i| items[i].id})
+       expect(items[0].descendants.ordered.pluck(:id)).to eq([1,3,4,8,5,7,6,2].map{|i| items[i].id})
      end
    end
 end

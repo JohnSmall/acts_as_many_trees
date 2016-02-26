@@ -30,14 +30,14 @@ module ActsAsManyTrees
     extend ActiveSupport::Concern
     included do
       has_many :unscoped_descendant_links,
-        ->{order(:position)},
+        # ->{order(:position)},
         class_name: hierarchy_class.to_s,
         foreign_key: 'ancestor_id',
         dependent: :delete_all,
         inverse_of: :unscoped_ancestor
 
       has_many :unscoped_ancestor_links,
-        ->{order(:position)},
+         ->{order(:position)},
         class_name: hierarchy_class.to_s,
         foreign_key: 'descendant_id',
         dependent: :delete_all,
@@ -76,6 +76,7 @@ module ActsAsManyTrees
           joins(inner_join).joins(outer_join).merge(where(Arel::Nodes::Equality.new(h2[:ancestor_id],nil)))
         }
         scope :not_this,->(this_id) { where.not(id: this_id)}
+        scope :ordered,->{order("#{hierarchy_table_name}.position")}
     end
     delegate :hierarchy_class, to: :class
     #can be over-ridden in the instance 
@@ -92,7 +93,7 @@ module ActsAsManyTrees
         existing_tree_name = inpt_parent[:existing_tree_name] || self.default_tree_name
       else
         new_parent=inpt_parent
-        after_node=inpt_parent.children.last unless inpt_parent.nil?
+        after_node=inpt_parent.children.ordered.last unless inpt_parent.nil?
         before_node=inpt_parent.next_sibling unless inpt_parent.nil?
         tree_name = inpt_parent ? inpt_parent.default_tree_name : self.default_tree_name
         existing_tree_name = self.default_tree_name

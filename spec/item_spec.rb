@@ -401,38 +401,38 @@ describe Item do
           end
           context 'without sub-tree' do
             before(:each) do
-            @items[1].parent = named_item
-            @items[2].parent = named_item
+              @items[1].parent = named_item
+              @items[2].parent = named_item
             end
-          it 'should keep children in the default scope' do
-            expect(@items[0].children.pluck(:id)).to match_array([@items[1].id,@items[2].id,named_item.id])
-          end
+            it 'should keep children in the default scope' do
+              expect(@items[0].children.pluck(:id)).to match_array([@items[1].id,@items[2].id,named_item.id])
+            end
 
-          it 'should add children to the named scope' do
-            expect(named_item.children.pluck(:id)).to match_array([@items[1].id,@items[2].id])
-          end
-          it 'should not add grand-children to the named scope' do
-            expect(named_item.descendants.pluck(:id)).to match_array([@items[1].id,@items[2].id])
-          end
+            it 'should add children to the named scope' do
+              expect(named_item.children.pluck(:id)).to match_array([@items[1].id,@items[2].id])
+            end
+            it 'should not add grand-children to the named scope' do
+              expect(named_item.descendants.pluck(:id)).to match_array([@items[1].id,@items[2].id])
+            end
           end
           context 'with sub-tree' do
             before(:each) do
-            @items[1].set_parent(clone_sub_tree:true,new_parent:named_item,tree_name:named_item.default_tree_name)
-            @items[2].set_parent(clone_sub_tree:true,new_parent:named_item,tree_name:named_item.default_tree_name)
+              @items[1].set_parent(clone_sub_tree:true,new_parent:named_item,tree_name:named_item.default_tree_name)
+              @items[2].set_parent(clone_sub_tree:true,new_parent:named_item,tree_name:named_item.default_tree_name)
             end
-          it 'should keep children in the default scope' do
-            expect(@items[0].children.pluck(:id)).to match_array([@items[1].id,@items[2].id,named_item.id])
-          end
-          it 'should keep grand_children in the default scope' do
-            expect(@items[0].descendants.pluck(:id)).to match_array((1..4).map{|i| @items[i].id}+[named_item.id])
-          end
+            it 'should keep children in the default scope' do
+              expect(@items[0].children.pluck(:id)).to match_array([@items[1].id,@items[2].id,named_item.id])
+            end
+            it 'should keep grand_children in the default scope' do
+              expect(@items[0].descendants.pluck(:id)).to match_array((1..4).map{|i| @items[i].id}+[named_item.id])
+            end
 
-          it 'should add children to the named scope' do
-            expect(named_item.children.pluck(:id)).to match_array([@items[1].id,@items[2].id])
-          end
-          it 'should add grand-children to the named scope' do
-            expect(named_item.descendants.pluck(:id)).to match_array((1..4).map{|i| @items[i].id})
-          end
+            it 'should add children to the named scope' do
+              expect(named_item.children.pluck(:id)).to match_array([@items[1].id,@items[2].id])
+            end
+            it 'should add grand-children to the named scope' do
+              expect(named_item.descendants.pluck(:id)).to match_array((1..4).map{|i| @items[i].id})
+            end
           end
           #   #this spec is required to test a named item owned by something in the default hierarchy
           #   #and the named item then owns other things which are also owned by its parent
@@ -460,10 +460,23 @@ describe Item do
           #   end
           # end
         end
-        end
-
-
       end
+
+
     end
   end
+  # these tests are to make sure we can still apply summary options to the relation
+  describe 'group operation' do
+    it 'should group_by' do
+      item1 = create(:item)
+      item2 = create(:item)
+      item2.parent = item1
+      item3 = create(:sub_item)
+      item3.parent = item1
+      item4 = create(:named_item)
+      item4.parent = item1
+      expect(item1.descendants.group(:type).count).to eq({nil=>1,"SubItem"=>1,"NamedItem"=>1})
+    end
+  end
+end
 
