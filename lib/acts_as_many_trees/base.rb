@@ -50,12 +50,12 @@ module ActsAsManyTrees
          :source=>:item_siblings
         }
       has_many :siblings_before,
-        ->{where("unscoped_ancestor_links_siblings_before_join.position > #{hierarchy_table_name}.position").where('unscoped_ancestor_links_siblings_before_join.generation=1')},
+        ->{where("unscoped_ancestor_links_siblings_before.position > #{hierarchy_table_name}.position").where('unscoped_ancestor_links_siblings_before.generation=1')},
         {:through=>:unscoped_ancestor_links, 
          :source=>:item_siblings
         }
       has_many :siblings_after,
-        ->{where("unscoped_ancestor_links_siblings_after_join.position < #{hierarchy_table_name}.position").where('unscoped_ancestor_links_siblings_after_join.generation=1')},
+        ->{where("unscoped_ancestor_links_siblings_after.position < #{hierarchy_table_name}.position").where('unscoped_ancestor_links_siblings_after.generation=1')},
         {:through=>:unscoped_ancestor_links, 
          :source=>:item_siblings
         }
@@ -71,9 +71,9 @@ module ActsAsManyTrees
                                     .and(Arel::Nodes::Equality.new(h1[:hierarchy_scope],h2[:hierarchy_scope]))
                                    .and(h2[:generation].not_eq(0))
                                    )
-          inner_join = Arel::Nodes::InnerJoin.new(h1,on1)
-          outer_join = Arel::Nodes::OuterJoin.new(h2,on2)
-          joins(inner_join).joins(outer_join).merge(where(Arel::Nodes::Equality.new(h2[:ancestor_id],nil)))
+          inner = Arel::Nodes::InnerJoin.new(h1,on1)
+          outer = Arel::Nodes::OuterJoin.new(h2,on2)
+          joins(inner).joins(outer).merge(where(Arel::Nodes::Equality.new(h2[:ancestor_id],nil)))
         }
         scope :not_this,->(this_id) { where.not(id: this_id)}
         scope :ordered,->{order("#{hierarchy_table_name}.position")}
