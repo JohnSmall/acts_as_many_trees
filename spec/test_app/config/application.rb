@@ -5,7 +5,6 @@ require "active_record/railtie"
 require "action_controller/railtie"
 require "action_mailer/railtie"
 require "action_view/railtie"
-require "sprockets/railtie"
 # require "rails/test_unit/railtie"
 
 Bundler.require(*Rails.groups)
@@ -14,8 +13,8 @@ require "acts_as_many_trees"
 module TestApp
   class Application < Rails::Application
   config.generators do |g|
-    g.test_framework :rspec, :fixtures => false 
-    g.fixture_replacement :factory_girl, :dir => "spec/factories"
+    g.test_framework :rspec, :fixtures => false
+    g.fixture_replacement :factory_bot, :dir => "spec/factories"
   end
     # Settings in config/environments/* take precedence over those specified here.
     # Application configuration should go into files in config/initializers
@@ -30,4 +29,3 @@ module TestApp
     # config.i18n.default_locale = :de
   end
 end
-

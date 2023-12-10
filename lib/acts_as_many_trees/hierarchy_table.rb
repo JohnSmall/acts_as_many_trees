@@ -1,6 +1,6 @@
 require 'bigdecimal'
 module ActsAsManyTrees
-  module HierarchyTable 
+  module HierarchyTable
     extend ActiveSupport::Concern
 
     included do
@@ -8,16 +8,16 @@ module ActsAsManyTrees
       class_attribute :item_class_name
       self.item_class_name = self.to_s.gsub('Hierarchy','')
       class_attribute :item_class
-      self.item_class = item_class_name.constantize 
+      self.item_class = item_class_name.constantize
 
       belongs_to :unscoped_ancestor,
         class_name: item_class_name,
-        foreign_key: 'ancestor_id', 
+        foreign_key: 'ancestor_id',
         inverse_of: :unscoped_descendant_links
 
       belongs_to :unscoped_descendant,
         class_name: item_class_name,
-        foreign_key: 'descendant_id', 
+        foreign_key: 'descendant_id',
         inverse_of: :unscoped_ancestor_links
 
       has_many :self_and_ancestors,
@@ -33,30 +33,30 @@ module ActsAsManyTrees
         primary_key: 'ancestor_id'
 
       has_many :self_and_descendants,
-        ->(rec){where(hierarchy_scope: rec.hierarchy_scope).where.order(:position)}, 
+        ->(rec){where(hierarchy_scope: rec.hierarchy_scope).where.order(:position)},
         class_name: self.name,
         foreign_key: 'ancestor_id',
         primary_key: 'descendant_id'
 
       has_many :descendants,
-        ->(rec){where(hierarchy_scope: rec.hierarchy_scope).where.not(generation:0).order(:position)}, 
+        ->(rec){where(hierarchy_scope: rec.hierarchy_scope).where.not(generation:0).order(:position)},
         class_name: self.name,
         foreign_key: 'ancestor_id',
         primary_key: 'descendant_id'
 
       has_many :siblings,
-        ->{where(generation: 1)}, 
+        ->{where(generation: 1)},
         class_name: self.name,
         foreign_key: 'ancestor_id',
         primary_key: 'ancestor_id'
 
       has_many :children,
-        ->(rec){where(hierarchy_scope: rec.hierarchy_scope,generation: 1).order(:position)}, 
+        ->(rec){where(hierarchy_scope: rec.hierarchy_scope,generation: 1).order(:position)},
         class_name: self.name,
         foreign_key: 'ancestor_id',
         primary_key: 'descendant_id'
 
-      has_many :item_siblings,{through: :siblings, source: :unscoped_descendant}
+      has_many :item_siblings, through: :siblings, source: :unscoped_descendant
 
       scope :scope_hierarchy,->(scope_hierarchy=''){ where hierarchy_scope: scope_hierarchy}
       # select t1.* from item_trees t1 left outer join item_trees t2 on t1.ancestor_id = t2.descendant_id and t1.tree_scope = t2.tree_scope where t2.ancestor_id is null
@@ -82,7 +82,7 @@ module ActsAsManyTrees
 
       def self.set_parent_of(item:,new_parent:,hierarchy_scope:'',existing_scope:'',clone_sub_tree:false,after_node:nil,before_node:nil)
         if new_parent
-          wrk_parent = self.find_by(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope) 
+          wrk_parent = self.find_by(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope)
           unless wrk_parent
             position = ((after_this(nil,nil,hierarchy_scope)+before_this(nil,hierarchy_scope))/2.0).round(15)
             wrk_parent=self.create(descendant_id:new_parent.id,ancestor_id:new_parent.id,generation: 0,hierarchy_scope: hierarchy_scope,position: position)
@@ -169,7 +169,7 @@ module ActsAsManyTrees
         sql=<<-SQL
         insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
         select b.ancestor_id,a.descendant_id,b.generation+1,'#{hierarchy_scope}',a.position
-        from #{table_name} a,#{table_name} b 
+        from #{table_name} a,#{table_name} b
         where b.descendant_id = #{new_parent.descendant_id}
         and a.descendant_id = #{item.descendant_id}
         and a.hierarchy_scope = '#{item.hierarchy_scope}'
@@ -184,7 +184,7 @@ module ActsAsManyTrees
         insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
         WITH RECURSIVE sub_trees(ancestor_id,descendant_id,generation,hierarchy_scope,position) AS
           (select ancestor_id,descendant_id,generation,'#{temp_name}',position from #{table_name}
-           where descendant_id = #{item.descendant_id} 
+           where descendant_id = #{item.descendant_id}
            and hierarchy_scope = '#{existing_name}'
         UNION
            select s.ancestor_id,s.descendant_id,
@@ -315,8 +315,8 @@ module ActsAsManyTrees
 
       def self.delete_ancestors_of_item_children(item,hierarchy_scope)
         sql = <<-SQL
-    delete from #{table_name} as p using #{table_name} as p1, #{table_name} as p2 
-    where p.descendant_id = p1.descendant_id 
+    delete from #{table_name} as p using #{table_name} as p1, #{table_name} as p2
+    where p.descendant_id = p1.descendant_id
     and p.ancestor_id = p2.ancestor_id
     and p2.descendant_id = #{item.descendant_id}
     and p1.ancestor_id = p2.descendant_id
@@ -330,9 +330,9 @@ module ActsAsManyTrees
       def self.set_new_ancestors_of_item_children(item,hierarchy_scope)
         sql=<<-SQL
        insert into #{table_name}(ancestor_id,descendant_id,generation,hierarchy_scope,position)
-       select it.ancestor_id,ct.descendant_id,it.generation+ct.generation,ct.hierarchy_scope,ct.position 
-       from #{table_name} it 
-       join #{table_name} ct 
+       select it.ancestor_id,ct.descendant_id,it.generation+ct.generation,ct.hierarchy_scope,ct.position
+       from #{table_name} it
+       join #{table_name} ct
        on ct.ancestor_id = it.descendant_id
        and ct.hierarchy_scope = it.hierarchy_scope
        where it.descendant_id=#{item.id}
@@ -346,10 +346,10 @@ module ActsAsManyTrees
         gap = before_position - after_position
         #        p "before position: #{before_position}, after_position: #{after_position} gap: #{gap}"
         #        sql = <<-SQL
-        #        select ancestor_id,descendant_id,hierarchy_scope,(#{after_position} + ( 
+        #        select ancestor_id,descendant_id,hierarchy_scope,(#{after_position} + (
         #        (CAST ((rank() over (partition by ancestor_id order by position)-1) AS numeric))
         #        /( CAST (count(*) over (partition by ancestor_id) AS numeric)) * #{gap})) as position
-        #        from #{table_name} 
+        #        from #{table_name}
         #        where ancestor_id=#{parent.descendant_id}
         #        and hierarchy_scope='#{hierarchy_scope}'
         #        SQL
@@ -358,15 +358,15 @@ module ActsAsManyTrees
         #          p row
         #        end
         sql = <<-SQL
-        with new_position as (select ancestor_id,descendant_id,hierarchy_scope,(#{after_position} + ( 
+        with new_position as (select ancestor_id,descendant_id,hierarchy_scope,(#{after_position} + (
         (CAST ((rank() over (partition by ancestor_id order by position)-1) AS numeric))
         /( CAST (count(*) over (partition by ancestor_id) AS numeric)) * #{gap})) as position
-        from #{table_name} 
+        from #{table_name}
         where ancestor_id=#{parent.descendant_id}
         and hierarchy_scope='#{hierarchy_scope}'
         )
-        update  
-        #{table_name} as t 
+        update
+        #{table_name} as t
         set position = new_position.position
         from new_position
         where t.descendant_id = new_position.descendant_id

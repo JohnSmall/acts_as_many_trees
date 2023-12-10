@@ -44,21 +44,20 @@ module ActsAsManyTrees
         inverse_of: :unscoped_descendant
 
       has_many :unscoped_ancestors,through: :unscoped_ancestor_links
-      has_many :unscoped_descendants,  {:through=>:unscoped_descendant_links, :source=>:unscoped_descendant}
-      has_many :self_and_siblings,  
-        {:through=>:unscoped_ancestor_links, 
-         :source=>:item_siblings
-        }
+      has_many :unscoped_descendants,  through: :unscoped_descendant_links, source: :unscoped_descendant
+      has_many :self_and_siblings,
+        through: :unscoped_ancestor_links,
+        source: :item_siblings
+
       has_many :siblings_before,
         ->{where("unscoped_ancestor_links_siblings_before.position > #{hierarchy_table_name}.position").where('unscoped_ancestor_links_siblings_before.generation=1')},
-        {:through=>:unscoped_ancestor_links, 
-         :source=>:item_siblings
-        }
+        through: :unscoped_ancestor_links,
+        source: :item_siblings
+
       has_many :siblings_after,
         ->{where("unscoped_ancestor_links_siblings_after.position < #{hierarchy_table_name}.position").where('unscoped_ancestor_links_siblings_after.generation=1')},
-        {:through=>:unscoped_ancestor_links, 
-         :source=>:item_siblings
-        }
+        through: :unscoped_ancestor_links,
+        source: :item_siblings
 
         scope :roots , ->(tree_name=self.default_tree_name){
         h1 = hierarchy_class.arel_table
@@ -79,7 +78,7 @@ module ActsAsManyTrees
         scope :ordered,->{order("#{hierarchy_table_name}.position")}
     end
     delegate :hierarchy_class, to: :class
-    #can be over-ridden in the instance 
+    #can be over-ridden in the instance
     def default_tree_name
       ''
     end
@@ -87,8 +86,8 @@ module ActsAsManyTrees
     def parent=(inpt_parent)
       if inpt_parent.is_a?(Hash)
         new_parent=inpt_parent[:new_parent]
-        after_node=inpt_parent[:after_node] 
-        before_node=inpt_parent[:before_node] 
+        after_node=inpt_parent[:after_node]
+        before_node=inpt_parent[:before_node]
         tree_name = inpt_parent[:tree_name] || (new_parent ? new_parent.default_tree_name : self.default_tree_name)
         existing_tree_name = inpt_parent[:existing_tree_name] || self.default_tree_name
       else
@@ -97,7 +96,7 @@ module ActsAsManyTrees
         before_node=inpt_parent.next_sibling unless inpt_parent.nil?
         tree_name = inpt_parent ? inpt_parent.default_tree_name : self.default_tree_name
         existing_tree_name = self.default_tree_name
-      end  
+      end
       hierarchy_class.set_parent_of(item:self,new_parent:new_parent,hierarchy_scope:tree_name,existing_scope:existing_tree_name,after_node:after_node,before_node:before_node)
     end
 
